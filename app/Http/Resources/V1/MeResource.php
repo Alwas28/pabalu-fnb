@@ -30,7 +30,7 @@ class MeResource extends JsonResource
                 'timezone' => $business->timezone,
             ] : null,
             'role' => $role ? ['code' => $role->value, 'label' => $role->label()] : null,
-            'permissions' => $role ? array_map(fn (Permission $p) => $p->value, $role->permissions()) : [],
+            'permissions' => $role ? array_map(fn (Permission $p) => $p->value, $business->permissionsFor($role)) : [],
             'outlets' => OutletResource::collection($this->accessibleOutlets()->where('is_active', true)->values()),
         ];
     }

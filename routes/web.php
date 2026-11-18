@@ -86,7 +86,11 @@ Route::middleware('auth')->group(function () {
             Volt::route('business', 'pages.settings.business')->name('business');
             Volt::route('outlets/create', 'pages.settings.outlet-form')->name('outlets.create');
             Volt::route('outlets/{outlet}', 'pages.settings.outlet-form')->name('outlets.edit');
+            Volt::route('audit', 'pages.settings.audit')->name('audit');
         });
+
+        // Hak akses role — khusus owner
+        Volt::route('settings/roles', 'pages.settings.roles')->middleware('can:roles.manage')->name('settings.roles');
     });
 });
 

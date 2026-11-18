@@ -131,6 +131,23 @@ enum UserRole: string
         return in_array($role, $this->assignableRoles(), true);
     }
 
+    /**
+     * Izin yang hanya boleh dimiliki Owner (tidak bisa diberikan ke role lain lewat pengaturan).
+     *
+     * @return list<Permission>
+     */
+    public static function ownerOnlyPermissions(): array
+    {
+        return [Permission::ApproveRefunds, Permission::ManagePaymentGateway, Permission::ManageRoles];
+    }
+
+    /** Role yang izinnya boleh diatur owner (semua kecuali Owner). */
+    public function isConfigurable(): bool
+    {
+        return $this !== self::Owner;
+    }
+
+    /** Izin bawaan — dipakai bila bisnis belum mengatur izin role ini. */
     public function can(Permission $permission): bool
     {
         return in_array($permission, $this->permissions(), true);

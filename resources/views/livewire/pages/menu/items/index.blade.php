@@ -77,6 +77,8 @@ new #[Layout('layouts.app')] #[Title('Daftar Menu')] class extends Component
         $available = ! $item->isAvailableAt($outlet);
 
         $item->outlets()->syncWithoutDetaching([$outlet->id => ['is_available' => $available]]);
+        \App\Models\AuditLog::record($item->business_id, $item, 'outlet_price', $item->name,
+            [$outlet->name => [$available ? 'habis' : 'tersedia', $available ? 'tersedia' : 'habis']]);
 
         $this->dispatch('toast', type: 'success', message: $item->name.($available ? ' tersedia kembali' : ' ditandai habis').' di '.$outlet->name);
         unset($this->items);

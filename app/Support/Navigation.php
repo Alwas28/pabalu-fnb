@@ -50,7 +50,9 @@ class Navigation
                 ['label' => 'Laporan', 'icon' => 'fa-chart-line', 'route' => 'reports.index', 'permission' => Permission::ViewReports],
             ],
             'Pengaturan' => [
-                ['label' => 'Bisnis & Outlet', 'icon' => 'fa-shop', 'route' => 'settings.business', 'active' => 'settings.*', 'permission' => Permission::ManageSettings],
+                ['label' => 'Bisnis & Outlet', 'icon' => 'fa-shop', 'route' => 'settings.business', 'active' => ['settings.business', 'settings.outlets.*'], 'permission' => Permission::ManageSettings],
+                ['label' => 'Hak Akses Role', 'icon' => 'fa-user-shield', 'route' => 'settings.roles', 'permission' => Permission::ManageRoles],
+                ['label' => 'Riwayat Perubahan', 'icon' => 'fa-clock-rotate-left', 'route' => 'settings.audit', 'permission' => Permission::ManageSettings],
                 ['label' => 'Akun', 'icon' => 'fa-user-gear', 'route' => 'profile', 'permission' => null],
             ],
         ];

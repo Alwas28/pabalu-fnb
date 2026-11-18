@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\PaymentGateway;
+use App\Enums\Permission;
+use App\Enums\UserRole;
 use Database\Factories\BusinessFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'name', 'phone', 'email', 'address', 'timezone', 'currency',
-    'payment_gateway_enabled', 'payment_gateway_provider', 'payment_gateway_sandbox', 'payment_gateway_credentials',
+    'payment_gateway_enabled', 'payment_gateway_provider', 'payment_gateway_sandbox', 'payment_gateway_credentials', 'role_permissions',
 ])]
 #[Hidden(['payment_gateway_credentials'])]
 class Business extends Model
@@ -29,6 +31,7 @@ class Business extends Model
             'payment_gateway_provider' => PaymentGateway::class,
             'payment_gateway_sandbox' => 'boolean',
             'payment_gateway_credentials' => 'encrypted:array',
+            'role_permissions' => 'array',
         ];
     }
 
@@ -103,6 +106,37 @@ class Business extends Model
     /**
      * Gateway hanya dianggap aktif bila dinyalakan DAN provider dipilih.
      */
+    /**
+     * Izin efektif sebuah role di bisnis ini: pengaturan owner bila ada, jika tidak izin bawaan.
+     * Owner selalu memegang semua izin; izin khusus owner tidak pernah diberikan ke role lain.
+     *
+     * @return list<Permission>
+     */
+    public function permissionsFor(UserRole $role): array
+    {
+        if ($role === UserRole::Owner) {
+            return Permission::cases();
+        }
+
+        $custom = $this->role_permissions[$role->value] ?? null;
+        $permissions = $custom === null
+            ? $role->permissions()
+            : array_values(array_filter(array_map(fn ($p) => Permission::tryFrom($p), $custom)));
+
+        return array_values(array_filter($permissions, fn (Permission $p) => ! in_array($p, UserRole::ownerOnlyPermissions(), true)));
+    }
+
+    public function roleHasPermission(UserRole $role, Permission $permission): bool
+    {
+        return in_array($permission, $this->permissionsFor($role), true);
+    }
+
+    /** Role yang izinnya sudah diubah dari bawaan. */
+    public function hasCustomPermissions(UserRole $role): bool
+    {
+        return isset($this->role_permissions[$role->value]);
+    }
+
     public function paymentGatewayActive(): bool
     {
         return $this->payment_gateway_enabled && $this->payment_gateway_provider !== null;

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\MenuItem;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -254,9 +255,20 @@ new #[Layout('layouts.app')] class extends Component
      */
     private function syncOutlets(MenuItem $menuItem): void
     {
+        $before = $menuItem->outlets()->get()->keyBy('id');
+        $describe = fn (?int $price, bool $available) => ($price === null ? 'harga dasar' : Money::format($price)).($available ? '' : ' · habis');
+        $changes = [];
+
         foreach ($this->outlets as $outlet) {
             $setting = $this->outletSettings[$outlet->id] ?? ['available' => true, 'price' => ''];
             $price = $setting['price'] === '' || $setting['price'] === null ? null : (int) $setting['price'];
+
+            $old = $before->get($outlet->id);
+            $oldText = $describe($old?->pivot->price === null ? null : (int) $old->pivot->price, (bool) ($old?->pivot->is_available ?? true));
+            $newText = $describe($price, (bool) $setting['available']);
+            if ($oldText !== $newText) {
+                $changes[$outlet->name] = [$oldText, $newText];
+            }
 
             if ($setting['available'] && $price === null) {
                 $menuItem->outlets()->detach($outlet->id);
@@ -266,6 +278,8 @@ new #[Layout('layouts.app')] class extends Component
                 ]);
             }
         }
+
+        AuditLog::record($menuItem->business_id, $menuItem, 'outlet_price', $menuItem->name, $changes);
     }
 }; ?>
 

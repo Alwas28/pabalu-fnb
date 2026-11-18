@@ -331,7 +331,8 @@ new #[Layout('layouts.app')] #[Title('Karyawan')] class extends Component
                     </select>
                     <x-input-error :messages="$errors->get('role')" class="mt-1.5" />
                     @if ($r = UserRole::tryFrom($role))
-                        <p class="f-hint">{{ count($r->permissions()) }} hak akses: {{ collect($r->permissions())->map->label()->take(4)->join(', ') }}{{ count($r->permissions()) > 4 ? ', …' : '' }}</p>
+                        @php $granted = auth()->user()->activeBusiness()->permissionsFor($r); @endphp
+                        <p class="f-hint">{{ count($granted) }} hak akses: {{ collect($granted)->map->label()->take(4)->join(', ') }}{{ count($granted) > 4 ? ', …' : '' }}</p>
                     @endif
                 </div>
 

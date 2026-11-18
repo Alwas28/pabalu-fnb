@@ -111,7 +111,9 @@ class User extends Authenticatable
 
     public function hasPermission(Permission $permission): bool
     {
-        return (bool) $this->currentRole()?->can($permission);
+        $membership = $this->currentMembership();
+
+        return (bool) $membership?->business->roleHasPermission($membership->role, $permission);
     }
 
     /* ─────────────── Konteks outlet ─────────────── */

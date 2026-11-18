@@ -211,6 +211,11 @@ new #[Layout('layouts.app')] #[Title('Resep & Bahan')] class extends Component
             'recipeRows.*.variant_id' => ['nullable', Rule::in($variantIds)],
         ], [], ['recipeRows.*.ingredient_id' => 'bahan', 'recipeRows.*.quantity' => 'jumlah']);
 
+        $owner = $menuItem ?? $modifier;
+        $describe = fn ($rows) => collect($rows)->map(fn ($r) => $r->ingredient->name.' '.Ingredient::qty($r->quantity).$r->ingredient->base_unit->value
+            .($r->menu_variant_id ? ' (+'.($menuItem?->variants->firstWhere('id', $r->menu_variant_id)?->name).')' : ''))->sort()->join(', ');
+        $before = $describe($owner->recipeItems()->with('ingredient')->get());
+
         DB::transaction(function () use ($menuItem, $modifier) {
             $menuItem ? $menuItem->recipeItems()->delete() : $modifier->recipeItems()->delete();
 
@@ -224,6 +229,12 @@ new #[Layout('layouts.app')] #[Title('Resep & Bahan')] class extends Component
                 ]);
             }
         });
+
+        $after = $describe($owner->recipeItems()->with('ingredient')->get());
+        if ($before !== $after) {
+            \App\Models\AuditLog::record($this->business()->id, $owner, 'recipe', $owner instanceof Modifier ? 'Modifier '.$owner->name : $owner->name,
+                ['resep' => [$before ?: '—', $after ?: '—']]);
+        }
 
         $this->dispatch('close-modal', name: 'recipe-form');
         $this->dispatch('toast', type: 'success', message: 'Resep '.($menuItem?->name ?? $modifier->name).' disimpan');

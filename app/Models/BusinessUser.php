@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  */
 class BusinessUser extends Pivot
 {
+    use Auditable;
+
     protected $table = 'business_users';
 
     public $incrementing = true;
@@ -42,5 +45,21 @@ class BusinessUser extends Pivot
     public function outlets(): BelongsToMany
     {
         return $this->belongsToMany(Outlet::class, 'business_user_outlet', 'business_user_id', 'outlet_id');
+    }
+
+    /** @return list<string> */
+    public function auditedAttributes(): array
+    {
+        return ['role', 'is_active'];
+    }
+
+    public function auditBusinessId(): ?int
+    {
+        return $this->business_id;
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Karyawan '.($this->user?->name ?? '#'.$this->user_id);
     }
 }

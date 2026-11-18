@@ -21,7 +21,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="text-[13px] font-semibold text-pb-text">{{ $r->label() }}</div>
-                    <div class="text-[11px] text-pb-muted">{{ count($r->permissions()) }} hak akses</div>
+                    <div class="text-[11px] text-pb-muted">{{ count(auth()->user()->activeBusiness()->permissionsFor($r)) }} hak akses</div>
                 </div>
                 <span class="text-[13px] font-bold text-pb-text">{{ $counts[$r->value] ?? 0 }}</span>
             </div>

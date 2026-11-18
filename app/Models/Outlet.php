@@ -6,6 +6,7 @@ use App\Enums\KitchenItemStatus;
 use App\Enums\KitchenMode;
 use App\Enums\PaymentMethod;
 use App\Enums\ServiceType;
+use App\Models\Concerns\Auditable;
 use Database\Factories\OutletFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
@@ -23,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Outlet extends Model
 {
+    use Auditable;
+
     /** @use HasFactory<OutletFactory> */
     use HasFactory;
 
@@ -153,5 +156,21 @@ class Outlet extends Model
             $this->kitchen_use_ready ? KitchenItemStatus::Ready : null,
             KitchenItemStatus::Served,
         ]));
+    }
+
+    /** @return list<string> */
+    public function auditedAttributes(): array
+    {
+        return ['name', 'is_active', 'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction', 'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax', 'payment_methods', 'receipt_paper_width'];
+    }
+
+    public function auditBusinessId(): ?int
+    {
+        return $this->business_id;
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->name;
     }
 }

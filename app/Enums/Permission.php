@@ -36,13 +36,14 @@ enum Permission: string
 
     // Hak khusus owner
     case ApproveRefunds = 'refunds.approve';
+    case ManageRoles = 'roles.manage';
 
     public function label(): string
     {
         return match ($this) {
             self::UsePos => 'Menggunakan kasir (POS)',
             self::ViewOrders => 'Melihat pesanan & transaksi',
-            self::ApproveTransactions => 'Menyetujui void, refund & diskon khusus',
+            self::ApproveTransactions => 'Memberi diskon, membatalkan pesanan & menghapus item',
             self::ViewKitchen => 'Melihat & memperbarui antrean dapur',
             self::ManageTables => 'Mengelola meja & area',
             self::ManageShifts => 'Membuka & menutup shift kasir',
@@ -57,6 +58,19 @@ enum Permission: string
             self::ManageSettings => 'Mengelola bisnis & outlet',
             self::ManagePaymentGateway => 'Mengatur payment gateway',
             self::ApproveRefunds => 'Menyetujui void & refund pesanan lunas',
+            self::ManageRoles => 'Mengatur hak akses role',
+        };
+    }
+
+    /** Kelompok untuk tampilan matriks hak akses. */
+    public function group(): string
+    {
+        return match ($this) {
+            self::UsePos, self::ViewOrders, self::ApproveTransactions, self::ViewKitchen, self::ManageTables, self::ManageShifts => 'Penjualan & operasional',
+            self::ManageMenu, self::ManageRecipes => 'Menu & resep',
+            self::ManageInventory, self::ManagePurchasing => 'Persediaan & pembelian',
+            self::ManageCustomers, self::ManageEmployees, self::ViewFinance, self::ViewReports => 'Bisnis',
+            self::ManageSettings, self::ManagePaymentGateway, self::ApproveRefunds, self::ManageRoles => 'Pengaturan & khusus owner',
         };
     }
 }

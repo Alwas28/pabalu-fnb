@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StockUnit;
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['name', 'sku', 'base_unit', 'purchase_unit', 'purchase_unit_size', 'min_stock', 'is_active'])]
 class Ingredient extends Model
 {
+    use Auditable;
+
     protected $attributes = [
         'min_stock' => 0,
         'is_active' => true,
@@ -59,5 +62,21 @@ class Ingredient extends Model
         $formatted = number_format($value, 3, ',', '.');
 
         return rtrim(rtrim($formatted, '0'), ',');
+    }
+
+    /** @return list<string> */
+    public function auditedAttributes(): array
+    {
+        return ['name', 'base_unit', 'purchase_unit', 'purchase_unit_size', 'min_stock', 'is_active'];
+    }
+
+    public function auditBusinessId(): ?int
+    {
+        return $this->business_id;
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->name;
     }
 }

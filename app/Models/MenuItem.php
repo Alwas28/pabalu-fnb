@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Database\Factories\MenuItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable(['menu_category_id', 'name', 'sku', 'description', 'image_path', 'price', 'sort_order', 'is_active'])]
 class MenuItem extends Model
 {
+    use Auditable;
+
     /** @use HasFactory<MenuItemFactory> */
     use HasFactory;
 
@@ -93,5 +96,21 @@ class MenuItem extends Model
     public function imageUrl(): ?string
     {
         return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+    }
+
+    /** @return list<string> */
+    public function auditedAttributes(): array
+    {
+        return ['name', 'sku', 'menu_category_id', 'price', 'is_active'];
+    }
+
+    public function auditBusinessId(): ?int
+    {
+        return $this->business_id;
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->name;
     }
 }
