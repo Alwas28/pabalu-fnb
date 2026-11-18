@@ -17,6 +17,7 @@
             <div class="flex justify-between text-pb-sub"><span>Refund tunai</span><span>-{{ Money::format($summary['cash_refunds']) }}</span></div>
         @endif
         <div class="flex justify-between font-bold text-pb-text border-t border-pb-border pt-1.5 mt-1"><span>Kas ekspektasi</span><span>{{ Money::format($summary['expected_cash']) }}</span></div>
+        <div class="text-[11px] text-pb-muted -mt-0.5">Hanya uang tunai di laci. QRIS, kartu & transfer tidak masuk laci.</div>
         @if ($shift && ! $shift->isOpen())
             <div class="flex justify-between text-pb-sub"><span>Kas aktual</span><span>{{ Money::format($shift->actual_cash) }}</span></div>
             <div @class(['flex justify-between font-bold', 'trend-up' => $shift->cash_difference > 0, 'trend-down' => $shift->cash_difference < 0, 'text-pb-text' => $shift->cash_difference === 0])>
@@ -32,7 +33,7 @@
         @empty
             <div class="text-pb-muted">Belum ada pembayaran.</div>
         @endforelse
-        <div class="flex justify-between font-bold text-pb-text border-t border-pb-border pt-1.5 mt-1"><span>Total diterima</span><span>{{ Money::format($summary['payments_total']) }}</span></div>
+        <div class="flex justify-between font-bold text-pb-text border-t border-pb-border pt-1.5 mt-1"><span>Total diterima (semua metode)</span><span>{{ Money::format($summary['payments_total']) }}</span></div>
         <div class="flex justify-between text-pb-sub"><span>Order dibayar</span><span>{{ $summary['orders_paid'] }}</span></div>
         @if ($summary['discount_total'] > 0)
             <div class="flex justify-between text-pb-sub"><span>Total diskon</span><span>{{ Money::format($summary['discount_total']) }}</span></div>
