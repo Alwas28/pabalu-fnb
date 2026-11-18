@@ -107,6 +107,30 @@ enum UserRole: string
         return in_array($this, [self::Owner, self::BusinessAdmin], true);
     }
 
+    /**
+     * Role yang boleh diberikan / dikelola oleh role ini lewat modul Karyawan.
+     * Owner tidak pernah bisa diberikan (melekat pada pemilik bisnis);
+     * Business Admin hanya mengelola role di bawahnya.
+     *
+     * @return list<self>
+     */
+    public function assignableRoles(): array
+    {
+        return match ($this) {
+            self::Owner => array_values(array_filter(self::cases(), fn (self $r) => $r !== self::Owner)),
+            self::BusinessAdmin => array_values(array_filter(
+                self::cases(),
+                fn (self $r) => ! in_array($r, [self::Owner, self::BusinessAdmin], true),
+            )),
+            default => [],
+        };
+    }
+
+    public function canAssign(self $role): bool
+    {
+        return in_array($role, $this->assignableRoles(), true);
+    }
+
     public function can(Permission $permission): bool
     {
         return in_array($permission, $this->permissions(), true);

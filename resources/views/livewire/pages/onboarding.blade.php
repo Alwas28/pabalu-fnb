@@ -25,10 +25,17 @@ new #[Layout('layouts.guest')] #[Title('Mulai')] class extends Component
 
     public function mount(): void
     {
+        $user = auth()->user();
+
         // Sudah punya bisnis → tidak perlu onboarding.
-        if (auth()->user()->hasBusiness()) {
+        if ($user->hasBusiness()) {
             $this->redirectRoute('dashboard', navigate: true);
+
+            return;
         }
+
+        // Staf yang dinonaktifkan tidak boleh membuat bisnis baru dari akun yang sama.
+        abort_if($user->memberships()->exists(), 403, \App\Http\Middleware\EnsureBusinessContext::DEACTIVATED_MESSAGE);
     }
 
     public function save(): void
@@ -36,6 +43,9 @@ new #[Layout('layouts.guest')] #[Title('Mulai')] class extends Component
         $this->validate();
 
         $user = auth()->user();
+
+        // Onboarding hanya untuk akun yang belum pernah tergabung di bisnis mana pun.
+        abort_if($user->memberships()->exists(), 403);
 
         DB::transaction(function () use ($user) {
             $business = new Business([

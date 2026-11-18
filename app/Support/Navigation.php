@@ -43,7 +43,7 @@ class Navigation
             ],
             'Bisnis' => [
                 ['label' => 'Pelanggan', 'icon' => 'fa-users', 'route' => null, 'permission' => Permission::ManageCustomers],
-                ['label' => 'Karyawan', 'icon' => 'fa-user-group', 'route' => null, 'permission' => Permission::ManageEmployees],
+                ['label' => 'Karyawan', 'icon' => 'fa-user-group', 'route' => 'employees.index', 'permission' => Permission::ManageEmployees],
                 ['label' => 'Keuangan', 'icon' => 'fa-wallet', 'route' => null, 'permission' => Permission::ViewFinance],
                 ['label' => 'Laporan', 'icon' => 'fa-chart-line', 'route' => null, 'permission' => Permission::ViewReports],
             ],

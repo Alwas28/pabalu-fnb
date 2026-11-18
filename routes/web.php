@@ -15,6 +15,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['verified', 'business'])->group(function () {
         Route::view('dashboard', 'dashboard')->name('dashboard');
 
+        // Karyawan — anggota tim, role & penugasan outlet
+        Volt::route('employees', 'pages.employees.index')
+            ->middleware('can:employees.manage')
+            ->name('employees.index');
+
         // Pengaturan — Bisnis & Outlet
         Route::middleware('can:settings.manage')->prefix('settings')->name('settings.')->group(function () {
             Volt::route('business', 'pages.settings.business')->name('business');
