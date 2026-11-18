@@ -57,6 +57,12 @@ class MenuItem extends Model
             ->orderByPivot('sort_order');
     }
 
+    /** Seluruh baris resep menu ini (dasar + tambahan per varian). */
+    public function recipeItems(): HasMany
+    {
+        return $this->hasMany(RecipeItem::class)->whereNull('modifier_id');
+    }
+
     /** Pengaturan harga & ketersediaan per outlet. */
     public function outlets(): BelongsToMany
     {

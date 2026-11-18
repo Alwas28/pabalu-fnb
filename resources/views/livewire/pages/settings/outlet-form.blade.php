@@ -30,6 +30,7 @@ new #[Layout('layouts.app')] class extends Component
     public string $kitchenMode = 'ticket';
     public bool $kitchenUsePreparing = true;
     public bool $kitchenUseReady = true;
+    public bool $recipeStockDeduction = false;
 
     // Pajak & service charge
     public bool $taxEnabled = false;
@@ -67,6 +68,7 @@ new #[Layout('layouts.app')] class extends Component
                 'kitchenMode' => $outlet->kitchen_mode->value,
                 'kitchenUsePreparing' => $outlet->kitchen_use_preparing,
                 'kitchenUseReady' => $outlet->kitchen_use_ready,
+                'recipeStockDeduction' => $outlet->recipe_stock_deduction,
                 'taxEnabled' => $outlet->tax_enabled,
                 'taxRate' => (string) (float) $outlet->tax_rate,
                 'serviceChargeEnabled' => $outlet->service_charge_enabled,
@@ -122,6 +124,7 @@ new #[Layout('layouts.app')] class extends Component
             'kitchenMode' => ['required', Rule::enum(KitchenMode::class)],
             'kitchenUsePreparing' => ['boolean'],
             'kitchenUseReady' => ['boolean'],
+            'recipeStockDeduction' => ['boolean'],
             'taxEnabled' => ['boolean'],
             'taxRate' => [Rule::requiredIf($this->taxEnabled), 'nullable', 'numeric', 'min:0', 'max:100'],
             'serviceChargeEnabled' => ['boolean'],
@@ -165,6 +168,7 @@ new #[Layout('layouts.app')] class extends Component
             'kitchen_mode' => $this->kitchenMode,
             'kitchen_use_preparing' => $this->kitchenUsePreparing,
             'kitchen_use_ready' => $this->kitchenUseReady,
+            'recipe_stock_deduction' => $this->recipeStockDeduction,
             'tax_enabled' => $this->taxEnabled,
             'tax_rate' => $this->taxEnabled ? $this->taxRate : 0,
             'service_charge_enabled' => $this->serviceChargeEnabled,
@@ -319,6 +323,20 @@ new #[Layout('layouts.app')] class extends Component
                     </div>
                 </div>
             @endif
+        </div>
+    </div>
+
+    {{-- ── Persediaan ── --}}
+    <div class="card animate-fadeUp d2">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-warehouse"></i>Persediaan</div>
+                <div class="section-desc">Stok bahan dicatat per outlet.</div>
+            </div>
+        </div>
+        <div class="card-body">
+            <x-toggle wire:model="recipeStockDeduction" label="Kurangi stok bahan otomatis dari resep" icon="fa-book-open"
+                      description="Setiap penjualan mengurangi bahan sesuai resep menu, varian & modifier. Bila nonaktif, resep tetap dipakai untuk menghitung food cost." />
         </div>
     </div>
 

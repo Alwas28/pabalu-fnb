@@ -37,10 +37,10 @@ class Navigation
                 ['label' => 'Daftar Menu', 'icon' => 'fa-utensils', 'route' => 'menu.items.index', 'active' => 'menu.items.*', 'permission' => Permission::ManageMenu],
                 ['label' => 'Kategori', 'icon' => 'fa-tags', 'route' => 'menu.categories', 'permission' => Permission::ManageMenu],
                 ['label' => 'Modifier & Topping', 'icon' => 'fa-layer-group', 'route' => 'menu.modifiers', 'permission' => Permission::ManageMenu],
-                ['label' => 'Resep & Bahan', 'icon' => 'fa-book-open', 'route' => null, 'permission' => Permission::ManageRecipes],
+                ['label' => 'Resep & Bahan', 'icon' => 'fa-book-open', 'route' => 'recipes.index', 'permission' => Permission::ManageRecipes],
             ],
             'Persediaan' => [
-                ['label' => 'Stok Bahan', 'icon' => 'fa-warehouse', 'route' => null, 'permission' => Permission::ManageInventory],
+                ['label' => 'Stok Bahan', 'icon' => 'fa-warehouse', 'route' => 'inventory.index', 'active' => 'inventory.*', 'permission' => Permission::ManageInventory],
                 ['label' => 'Pembelian', 'icon' => 'fa-truck', 'route' => null, 'permission' => Permission::ManagePurchasing],
             ],
             'Bisnis' => [

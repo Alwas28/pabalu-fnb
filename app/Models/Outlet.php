@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'code', 'name', 'phone', 'address', 'opens_at', 'closes_at', 'is_active',
-    'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready',
+    'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction',
     'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax',
     'payment_methods', 'receipt_paper_width', 'receipt_footer',
 ])]
@@ -40,6 +40,7 @@ class Outlet extends Model
         'kitchen_mode' => 'ticket',
         'kitchen_use_preparing' => true,
         'kitchen_use_ready' => true,
+        'recipe_stock_deduction' => false,
         'tax_enabled' => false,
         'tax_rate' => 0,
         'service_charge_enabled' => false,
@@ -63,6 +64,7 @@ class Outlet extends Model
             'kitchen_mode' => KitchenMode::class,
             'kitchen_use_preparing' => 'boolean',
             'kitchen_use_ready' => 'boolean',
+            'recipe_stock_deduction' => 'boolean',
             'tax_enabled' => 'boolean',
             'tax_rate' => 'decimal:2',
             'service_charge_enabled' => 'boolean',
@@ -76,6 +78,11 @@ class Outlet extends Model
     public function diningTables(): HasMany
     {
         return $this->hasMany(DiningTable::class)->orderBy('area')->orderBy('sort_order')->orderBy('name');
+    }
+
+    public function ingredientStocks(): HasMany
+    {
+        return $this->hasMany(IngredientStock::class);
     }
 
     public function shifts(): HasMany

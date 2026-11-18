@@ -53,6 +53,13 @@ Route::middleware('auth')->group(function () {
             Volt::route('modifiers', 'pages.menu.modifiers')->name('modifiers');
         });
 
+        // Resep & bahan baku, stok bahan
+        Volt::route('recipes', 'pages.recipes.index')->middleware('can:recipes.manage')->name('recipes.index');
+        Route::middleware('can:inventory.manage')->prefix('inventory')->name('inventory.')->group(function () {
+            Volt::route('/', 'pages.inventory.index')->name('index');
+            Volt::route('counts', 'pages.inventory.counts')->name('counts.index');
+        });
+
         // Karyawan — anggota tim, role & penugasan outlet
         Volt::route('employees', 'pages.employees.index')
             ->middleware('can:employees.manage')
