@@ -31,9 +31,10 @@ class OrderWriter
         $outlet = $order->outlet;
         $batch = (int) $order->items()->max('kitchen_batch') + 1;
         $kitchenStatus = KitchenFlow::initialItemStatus($outlet);
+        $created = [];
 
         foreach ($lines as $line) {
-            $item = $order->items()->create([
+            $item = $created[] = $order->items()->create([
                 'menu_item_id' => $line->menuItem->id,
                 'menu_variant_id' => $line->variant?->id,
                 'name' => $line->menuItem->name,
@@ -55,6 +56,8 @@ class OrderWriter
                 ]);
             }
         }
+
+        OrderEvents::itemsAdded($order, $created);
     }
 
     /**

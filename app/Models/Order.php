@@ -38,6 +38,7 @@ class Order extends Model
             'total' => 'integer',
             'paid_amount' => 'integer',
             'change_amount' => 'integer',
+            'refunded_amount' => 'integer',
             'placed_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
@@ -99,6 +100,22 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(OrderPayment::class)->orderBy('id');
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(OrderRefund::class)->orderBy('id');
+    }
+
+    public function refundRequests(): HasMany
+    {
+        return $this->hasMany(RefundRequest::class)->latest('id');
+    }
+
+    /** Penjualan bersih setelah pengembalian dana. */
+    public function netCollected(): int
+    {
+        return $this->paid_amount - $this->refunded_amount;
     }
 
     public function statusHistories(): HasMany

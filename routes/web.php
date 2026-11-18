@@ -30,6 +30,9 @@ Route::middleware('auth')->group(function () {
             Volt::route('orders/{order}', 'pages.orders.show')->name('orders.show');
         });
 
+        // Persetujuan void / refund (owner)
+        Volt::route('approvals', 'pages.approvals.index')->middleware('can:refunds.approve')->name('approvals.index');
+
         // Antrean dapur & tiket dapur
         Volt::route('kitchen', 'pages.kitchen.index')->middleware('can:kitchen.view')->name('kitchen.index');
         Route::get('orders/{order}/kitchen-ticket', [KitchenTicketController::class, 'show'])->name('orders.kitchen-ticket');

@@ -34,6 +34,9 @@ enum Permission: string
     case ManageSettings = 'settings.manage';
     case ManagePaymentGateway = 'payment-gateway.manage';
 
+    // Hak khusus owner
+    case ApproveRefunds = 'refunds.approve';
+
     public function label(): string
     {
         return match ($this) {
@@ -53,6 +56,7 @@ enum Permission: string
             self::ViewReports => 'Melihat laporan',
             self::ManageSettings => 'Mengelola bisnis & outlet',
             self::ManagePaymentGateway => 'Mengatur payment gateway',
+            self::ApproveRefunds => 'Menyetujui void & refund pesanan lunas',
         };
     }
 }

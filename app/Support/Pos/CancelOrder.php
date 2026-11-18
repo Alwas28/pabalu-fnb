@@ -48,6 +48,7 @@ class CancelOrder
 
             $order->items()->update(['kitchen_status' => KitchenItemStatus::Cancelled, 'kitchen_updated_at' => now()]);
             OrderWriter::history($order, $from, OrderStatus::Cancelled, $user, $data['reason']);
+            OrderEvents::voided($order);
             OrderWriter::releaseIfFree($order->diningTable);
 
             return $order;

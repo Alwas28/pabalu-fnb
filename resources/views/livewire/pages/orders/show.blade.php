@@ -1,6 +1,11 @@
 <?php
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\RefundType;
 use App\Models\Order;
+use App\Support\Pos\RefundService;
 use App\Support\Money;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -9,10 +14,48 @@ new #[Layout('layouts.app')] class extends Component
 {
     public Order $order;
 
+    // Pengajuan void / refund
+    public string $refundType = 'refund';
+    public string $refundAmount = '';
+    public string $refundMethod = 'cash';
+    public string $refundReason = '';
+
     public function mount(Order $order): void
     {
         $this->authorize('view', $order);
-        $this->order = $order->loadReceipt()->load('statusHistories.user');
+        $this->loadOrder($order);
+    }
+
+    private function loadOrder(Order $order): void
+    {
+        $this->order = $order->loadReceipt()->load(['statusHistories.user', 'refunds.user', 'refundRequests.requester', 'refundRequests.decider', 'canceller']);
+    }
+
+    public function canRequestRefund(): bool
+    {
+        return in_array($this->order->payment_status, [PaymentStatus::Paid, PaymentStatus::PartiallyRefunded], true)
+            && $this->order->status !== OrderStatus::Cancelled
+            && app(RefundService::class)->refundable($this->order) > 0
+            && ! $this->order->refundRequests->contains(fn ($r) => $r->isPending());
+    }
+
+    public function requestRefund(): void
+    {
+        $this->authorize('view', $this->order);
+
+        $request = app(RefundService::class)->request(auth()->user(), $this->order, [
+            'type' => $this->refundType,
+            'amount' => Money::parse($this->refundAmount) ?? '',
+            'method' => $this->refundMethod,
+            'reason' => $this->refundReason,
+        ]);
+
+        $this->reset('refundType', 'refundAmount', 'refundMethod', 'refundReason');
+        $this->loadOrder($this->order->fresh());
+        $this->dispatch('close-modal', name: 'refund-request');
+        $this->dispatch('toast', type: 'success', message: $request->isPending()
+            ? $request->type->label().' diajukan, menunggu persetujuan owner'
+            : $request->type->label().' berhasil diproses');
     }
 
     public function rendering($view): void
@@ -27,6 +70,11 @@ new #[Layout('layouts.app')] class extends Component
 @endphp
 
 <x-slot name="actions">
+    @if ($this->canRequestRefund())
+        <button type="button" x-data x-on:click="$dispatch('open-modal', 'refund-request')" class="btn btn-secondary !px-3 sm:!px-[18px]" style="color:#f87171">
+            <i class="fa-solid fa-rotate-left"></i><span class="hidden sm:inline">Void / Refund</span>
+        </button>
+    @endif
     @if ($order->isOpen())
         @can('operate', $order)
             <a href="{{ route('pos', ['order' => $order->id]) }}" wire:navigate class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-cash-register"></i><span class="hidden sm:inline">Buka di Kasir</span></a>
@@ -104,6 +152,31 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
             </div>
 
+            @if ($order->refundRequests->isNotEmpty() || $order->refunds->isNotEmpty())
+                <div class="card overflow-hidden animate-fadeUp d1">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fa-solid fa-rotate-left"></i>Void &amp; Refund</div>
+                        @if ($order->refunded_amount > 0)
+                            <span class="chip">Dikembalikan {{ Money::format($order->refunded_amount) }}</span>
+                        @endif
+                    </div>
+                    <div class="flex flex-col divide-y divide-pb-border text-[13px]">
+                        @foreach ($order->refundRequests as $request)
+                            <div class="px-5 py-3 flex flex-wrap items-start gap-3" wire:key="rr-{{ $request->id }}">
+                                <span class="badge {{ $request->status->badge() }}">{{ $request->status->label() }}</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-pb-text">{{ $request->type->label() }} {{ Money::format($request->amount) }}{{ $request->method ? ' · '.$request->method->label() : '' }}</div>
+                                    <div class="text-pb-sub">“{{ $request->reason }}” — {{ $request->requester?->name }}, {{ $request->created_at->timezone($tz)->format('d/m H:i') }}</div>
+                                    @if ($request->decided_at)
+                                        <div class="text-[12px] text-pb-muted">{{ $request->status->label() }} oleh {{ $request->decider?->name }} {{ $request->decided_at->timezone($tz)->format('d/m H:i') }}{{ $request->decision_note ? ' · '.$request->decision_note : '' }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div class="card overflow-hidden animate-fadeUp d1">
                 <div class="card-header"><div class="card-title"><i class="fa-solid fa-wallet"></i>Pembayaran</div></div>
                 <div class="overflow-x-auto">
@@ -179,4 +252,57 @@ new #[Layout('layouts.app')] class extends Component
             </div>
         </div>
     </div>
+
+    <x-modal name="refund-request" maxWidth="md" focusable>
+        <form wire:submit="requestRefund">
+            <div class="px-6 py-5 border-b border-pb-border">
+                <div class="font-display text-base font-bold text-pb-text">Ajukan Void / Refund</div>
+                <div class="text-xs text-pb-muted mt-px">
+                    {{ $order->number }} · bisa dikembalikan {{ Money::format(app(RefundService::class)->refundable($order)) }}
+                    @cannot('refunds.approve') · perlu persetujuan owner @endcannot
+                </div>
+            </div>
+            <div class="px-6 py-5 flex flex-col gap-4">
+                <div class="grid gap-2">
+                    @foreach (RefundType::cases() as $type)
+                        <label class="choice-card !p-3">
+                            <input type="radio" wire:model.live="refundType" value="{{ $type->value }}" name="refundType" @disabled($type === RefundType::Void && $order->refunded_amount > 0)>
+                            <span>
+                                <span class="block text-[13px] font-semibold text-pb-text">{{ $type->label() }}</span>
+                                <span class="block text-[11.5px] text-pb-muted">{{ $type->description() }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <x-input-error :messages="$errors->get('type')" />
+                @if ($refundType === 'refund')
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <x-input-label for="refundAmount" value="Nominal (Rp)" />
+                            <x-text-input wire:model="refundAmount" id="refundAmount" type="number" min="1" required />
+                            <x-input-error :messages="$errors->get('amount')" class="mt-1.5" />
+                        </div>
+                        <div>
+                            <x-input-label for="refundMethod" value="Dikembalikan via" />
+                            <select wire:model="refundMethod" id="refundMethod" class="f-input">
+                                @foreach (PaymentMethod::cases() as $method)
+                                    <option value="{{ $method->value }}">{{ $method->label() }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                @endif
+                <div>
+                    <x-input-label for="refundReason" value="Alasan" />
+                    <x-text-input wire:model="refundReason" id="refundReason" placeholder="mis. Salah input menu, minuman tumpah" required />
+                    <x-input-error :messages="$errors->get('reason')" class="mt-1.5" />
+                </div>
+                <p class="f-hint !mt-0"><i class="fa-solid fa-circle-info mr-1"></i>Pengembalian tunai diambil dari laci kas shift yang sedang berjalan.</p>
+            </div>
+            <div class="px-6 py-4 border-t border-pb-border flex justify-end gap-2.5">
+                <x-secondary-button x-on:click="$dispatch('close')">Batal</x-secondary-button>
+                <x-primary-button wire:loading.attr="disabled" wire:target="requestRefund"><i class="fa-solid fa-paper-plane"></i>@can('refunds.approve') Proses @else Ajukan @endcan</x-primary-button>
+            </div>
+        </form>
+    </x-modal>
 </div>

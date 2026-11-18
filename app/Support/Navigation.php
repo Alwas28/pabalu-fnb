@@ -30,6 +30,7 @@ class Navigation
                 ['label' => 'Pesanan', 'icon' => 'fa-receipt', 'route' => 'orders.index', 'active' => 'orders.*', 'permission' => Permission::ViewOrders],
                 ['label' => 'Antrean Dapur', 'icon' => 'fa-fire-burner', 'route' => 'kitchen.index', 'permission' => Permission::ViewKitchen],
                 ['label' => 'Meja & Area', 'icon' => 'fa-chair', 'route' => 'tables.index', 'permission' => Permission::ManageTables],
+                ['label' => 'Persetujuan', 'icon' => 'fa-stamp', 'route' => 'approvals.index', 'permission' => Permission::ApproveRefunds],
                 ['label' => 'Shift Kasir', 'icon' => 'fa-clock', 'route' => 'shifts.index', 'active' => 'shifts.*', 'permission' => Permission::ManageShifts],
             ],
             'Menu' => [

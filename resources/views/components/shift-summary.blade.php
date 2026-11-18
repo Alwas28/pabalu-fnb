@@ -13,6 +13,9 @@
         <div class="flex justify-between text-pb-sub"><span>Penjualan tunai</span><span>{{ Money::format($summary['cash_sales']) }}</span></div>
         <div class="flex justify-between text-pb-sub"><span>Kas masuk</span><span>{{ Money::format($summary['cash_in']) }}</span></div>
         <div class="flex justify-between text-pb-sub"><span>Kas keluar</span><span>-{{ Money::format($summary['cash_out']) }}</span></div>
+        @if (($summary['cash_refunds'] ?? 0) > 0)
+            <div class="flex justify-between text-pb-sub"><span>Refund tunai</span><span>-{{ Money::format($summary['cash_refunds']) }}</span></div>
+        @endif
         <div class="flex justify-between font-bold text-pb-text border-t border-pb-border pt-1.5 mt-1"><span>Kas ekspektasi</span><span>{{ Money::format($summary['expected_cash']) }}</span></div>
         @if ($shift && ! $shift->isOpen())
             <div class="flex justify-between text-pb-sub"><span>Kas aktual</span><span>{{ Money::format($shift->actual_cash) }}</span></div>

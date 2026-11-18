@@ -10,6 +10,7 @@ use App\Support\Pos\AddOrderItems;
 use App\Support\Pos\CancelOrder;
 use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
+use App\Support\Pos\RefundService;
 use App\Support\Pos\SettleOrder;
 use App\Support\Receipt\EscPosKitchenTicket;
 use App\Support\Receipt\EscPosReceipt;
@@ -130,6 +131,24 @@ class OrderController extends Controller
         Gate::authorize('cancel', $order);
 
         return new OrderResource($cancel->handle($request->user(), $order, $request->only('reason'))->fresh()->loadReceipt());
+    }
+
+    /**
+     * Ajukan void / refund pesanan lunas. Butuh persetujuan owner (status "pending"),
+     * kecuali diajukan oleh owner sendiri.
+     */
+    public function requestRefund(Request $request, Order $order, RefundService $refunds): JsonResponse
+    {
+        Gate::authorize('view', $order);
+
+        $refundRequest = $refunds->request($request->user(), $order, $request->only('type', 'amount', 'method', 'reason'));
+
+        return response()->json(['data' => [
+            'id' => $refundRequest->id,
+            'type' => $refundRequest->type->value,
+            'amount' => $refundRequest->amount,
+            'status' => $refundRequest->status->value,
+        ]], 201);
     }
 
     public function show(Order $order): OrderResource

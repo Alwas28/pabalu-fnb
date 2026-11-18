@@ -41,6 +41,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('orders/{order}/settle', [OrderController::class, 'settle'])->name('orders.settle');
         Route::post('orders/{order}/move-table', [OrderController::class, 'moveTable'])->name('orders.move-table');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+        Route::post('orders/{order}/refund-requests', [OrderController::class, 'requestRefund'])->name('orders.refund-requests.store');
 
         // Shift kasir
         Route::get('outlets/{outlet}/shift', [ShiftController::class, 'current'])->name('outlets.shift.current');

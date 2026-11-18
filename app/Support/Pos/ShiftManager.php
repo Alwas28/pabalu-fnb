@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\ShiftStatus;
 use App\Models\CashShift;
 use App\Models\Order;
+use App\Models\OrderRefund;
 use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  * Shift kasir (Blueprint Khusus F&B bagian 5 & 6): wajib dibuka sebelum bertransaksi.
  *
  * Kas ekspektasi = modal awal + pembayaran tunai yang diterima di shift (setelah kembalian)
- *                  + kas masuk − kas keluar. Selisih = kas aktual − kas ekspektasi.
+ *                  + kas masuk − kas keluar − refund tunai. Selisih = kas aktual − kas ekspektasi.
  */
 class ShiftManager
 {
@@ -157,6 +158,7 @@ class ShiftManager
         $cashOut = (int) ($movements[CashMovementType::Out->value] ?? 0);
         $cashSales = $byMethod[PaymentMethod::Cash->value] ?? 0;
 
+        $cashRefunds = (int) OrderRefund::where('cash_shift_id', $shift->id)->where('method', PaymentMethod::Cash)->sum('amount');
         $paidOrderIds = $shift->payments()->distinct()->pluck('order_id');
 
         return [
@@ -164,7 +166,8 @@ class ShiftManager
             'cash_sales' => $cashSales,
             'cash_in' => $cashIn,
             'cash_out' => $cashOut,
-            'expected_cash' => $shift->opening_cash + $cashSales + $cashIn - $cashOut,
+            'cash_refunds' => $cashRefunds,
+            'expected_cash' => $shift->opening_cash + $cashSales + $cashIn - $cashOut - $cashRefunds,
             'payments_total' => array_sum($byMethod),
             'orders_paid' => $paidOrderIds->count(),
             'orders_opened' => $shift->orders()->count(),
