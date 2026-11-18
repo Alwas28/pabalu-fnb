@@ -52,6 +52,7 @@ class OrderResource extends JsonResource
                 'line_total' => $item->line_total,
                 'notes' => $item->notes,
                 'kitchen_status' => $item->kitchen_status->value,
+                'kitchen_batch' => $item->kitchen_batch,
                 'modifiers' => $item->relationLoaded('modifiers') ? $item->modifiers->map(fn ($m) => [
                     'modifier_id' => $m->modifier_id,
                     'group_name' => $m->group_name,

@@ -70,7 +70,6 @@ class PlaceOrder
             // Kunci outlet agar penomoran order harian tidak bentrok saat kasir bertransaksi bersamaan.
             $outlet = Outlet::whereKey($outlet->id)->lockForUpdate()->firstOrFail();
             $now = now();
-            $status = $payLater ? OrderStatus::Confirmed : OrderStatus::Completed;
 
             $order = Order::create([
                 'business_id' => $outlet->business_id,
@@ -87,10 +86,9 @@ class PlaceOrder
                 'customer_phone' => $data['customer_phone'] ?? null,
                 'delivery_address' => $data['delivery_address'] ?? null,
                 'notes' => $data['notes'] ?? null,
-                'status' => $status,
+                'status' => OrderStatus::Confirmed,
                 'payment_status' => PaymentStatus::Pending,
                 'placed_at' => $now,
-                'completed_at' => $payLater ? null : $now,
             ] + OrderWriter::totalsAttributes($totals, $discountType, $discountValue, $data['discount_reason'] ?? null));
 
             OrderWriter::writeLines($order, $lines);
@@ -99,8 +97,11 @@ class PlaceOrder
                 OrderWriter::writePayments($order, $payments, $cashier, $shift);
             }
 
-            OrderWriter::history($order, null, $status, $cashier, $payLater ? 'Pesanan dibuka (bayar nanti)' : 'Order dibuat & dibayar di kasir');
+            OrderWriter::history($order, null, OrderStatus::Confirmed, $cashier, $payLater ? 'Pesanan dibuka (bayar nanti)' : 'Order dibuat & dibayar di kasir');
             OrderWriter::occupy($table);
+
+            // Tanpa layar dapur, item langsung tersaji → order lunas langsung Selesai.
+            KitchenFlow::sync($order, $cashier);
 
             return $order;
         });

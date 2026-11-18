@@ -74,15 +74,21 @@ class Order extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
-    /** Open bill: pesanan diterima, belum lunas dan belum dibatalkan. */
+    /** Open bill: pesanan belum dibayar dan belum dibatalkan (status dapur apa pun). */
     public function isOpen(): bool
     {
-        return $this->status->isOpen() && $this->payment_status !== PaymentStatus::Paid;
+        return $this->payment_status === PaymentStatus::Pending && $this->status !== OrderStatus::Cancelled;
     }
 
     public function scopeOpen(Builder $query): void
     {
-        $query->whereIn('status', OrderStatus::openStatuses());
+        $query->where('payment_status', PaymentStatus::Pending)->where('status', '!=', OrderStatus::Cancelled);
+    }
+
+    /** Pesanan yang masih punya item aktif di dapur. */
+    public function scopeInKitchen(Builder $query): void
+    {
+        $query->whereIn('status', OrderStatus::kitchenStatuses());
     }
 
     public function items(): HasMany

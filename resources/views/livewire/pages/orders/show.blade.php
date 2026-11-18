@@ -55,7 +55,7 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
                 <div class="overflow-x-auto">
                     <table class="tbl">
-                        <thead><tr><th>Menu</th><th class="text-right">Harga</th><th class="text-right">Qty</th><th class="text-right">Jumlah</th></tr></thead>
+                        <thead><tr><th>Menu</th><th>Dapur</th><th class="text-right">Harga</th><th class="text-right">Qty</th><th class="text-right">Jumlah</th></tr></thead>
                         <tbody>
                             @foreach ($order->items as $item)
                                 <tr wire:key="oi-{{ $item->id }}">
@@ -67,6 +67,10 @@ new #[Layout('layouts.app')] class extends Component
                                         @if ($item->notes)
                                             <div class="text-[11.5px] text-pb-muted font-normal italic">“{{ $item->notes }}”</div>
                                         @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ $item->kitchen_status->badge() }}">{{ $item->kitchen_status->label() }}</span>
+                                        @if ($item->kitchen_batch > 1)<div class="text-[10.5px] text-pb-muted mt-0.5">Tambahan #{{ $item->kitchen_batch - 1 }}</div>@endif
                                     </td>
                                     <td class="text-right whitespace-nowrap">{{ Money::format($item->unit_price) }}</td>
                                     <td class="text-right">{{ $item->quantity }}</td>
@@ -151,7 +155,18 @@ new #[Layout('layouts.app')] class extends Component
             </div>
 
             <div class="card animate-fadeUp d3">
-                <div class="card-header"><div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Riwayat Status</div></div>
+                <div class="card-header">
+                    <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Riwayat Status</div>
+                    @if (! $order->outlet->usesKitchenDisplay())
+                        <div class="flex gap-1">
+                            @foreach ($order->items->pluck('kitchen_batch')->unique()->sort() as $batch)
+                                <a href="{{ route('orders.kitchen-ticket', ['order' => $order->id, 'batch' => $batch]) }}" target="_blank" class="chip" title="Cetak tiket dapur">
+                                    <i class="fa-solid fa-fire-burner"></i>{{ $batch === 1 ? 'Tiket' : '+'.($batch - 1) }}
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
                 <div class="card-body flex flex-col gap-3 text-[12.5px]">
                     @foreach ($order->statusHistories as $history)
                         <div wire:key="h-{{ $history->id }}">

@@ -67,7 +67,7 @@ class ShiftOpenBillApiTest extends TestCase
         $this->postJson("/api/v1/orders/{$orderId}/settle", ['payments' => [['method' => 'cash', 'amount' => 50000]]])
             ->assertOk()
             ->assertJsonPath('data.payment_status', 'paid')
-            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.status', 'confirmed')
             ->assertJsonPath('data.change_amount', 29210);
 
         $this->postJson("/api/v1/shifts/{$shiftId}/cash-movements", ['type' => 'out', 'amount' => 10000, 'reason' => 'Beli gas'])

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\KitchenTicketController;
 use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -28,6 +29,10 @@ Route::middleware('auth')->group(function () {
             Volt::route('orders', 'pages.orders.index')->name('orders.index');
             Volt::route('orders/{order}', 'pages.orders.show')->name('orders.show');
         });
+
+        // Antrean dapur & tiket dapur
+        Volt::route('kitchen', 'pages.kitchen.index')->middleware('can:kitchen.view')->name('kitchen.index');
+        Route::get('orders/{order}/kitchen-ticket', [KitchenTicketController::class, 'show'])->name('orders.kitchen-ticket');
 
         // Shift kasir & meja
         Route::middleware('can:shifts.manage')->group(function () {

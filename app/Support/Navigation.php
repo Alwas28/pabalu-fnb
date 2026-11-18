@@ -28,7 +28,7 @@ class Navigation
             'Penjualan' => [
                 ['label' => 'Kasir (POS)', 'icon' => 'fa-cash-register', 'route' => 'pos', 'permission' => Permission::UsePos],
                 ['label' => 'Pesanan', 'icon' => 'fa-receipt', 'route' => 'orders.index', 'active' => 'orders.*', 'permission' => Permission::ViewOrders],
-                ['label' => 'Antrean Dapur', 'icon' => 'fa-fire-burner', 'route' => null, 'permission' => Permission::ViewKitchen],
+                ['label' => 'Antrean Dapur', 'icon' => 'fa-fire-burner', 'route' => 'kitchen.index', 'permission' => Permission::ViewKitchen],
                 ['label' => 'Meja & Area', 'icon' => 'fa-chair', 'route' => 'tables.index', 'permission' => Permission::ManageTables],
                 ['label' => 'Shift Kasir', 'icon' => 'fa-clock', 'route' => 'shifts.index', 'active' => 'shifts.*', 'permission' => Permission::ManageShifts],
             ],

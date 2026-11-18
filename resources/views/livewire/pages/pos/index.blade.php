@@ -79,6 +79,9 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     // Buka shift dari layar kasir
     public string $openingCash = '';
 
+    /** Tiket dapur terakhir yang perlu dicetak (outlet mode cetak tiket): [order id, batch]. */
+    public ?array $pendingTicket = null;
+
     public function mount(): void
     {
         $outlet = auth()->user()->currentOutlet();
@@ -336,6 +339,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             $message = 'Pesanan '.$order->number.' disimpan'.($order->table_number ? ' · Meja '.$order->table_number : '').' — bayar nanti';
         }
 
+        $this->rememberTicket($order);
         $this->clearCart();
         $this->checkoutToken = (string) Str::uuid();
         unset($this->openOrders, $this->tables);
@@ -598,12 +602,21 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         }
 
         $this->lastOrderId = $order->id;
+        $this->rememberTicket($order);
         $this->clearCart();
         $this->checkoutToken = (string) Str::uuid();
         unset($this->lastOrder, $this->openOrders, $this->tables);
 
         $this->dispatch('close-modal', name: 'payment');
         $this->dispatch('open-modal', name: 'order-done');
+    }
+
+    /** Outlet tanpa layar dapur: siapkan tiket dapur untuk kiriman item terakhir. */
+    private function rememberTicket(Order $order): void
+    {
+        $this->pendingTicket = $this->outlet->usesKitchenDisplay()
+            ? null
+            : ['order' => $order->id, 'number' => $order->number, 'batch' => (int) $order->items()->max('kitchen_batch')];
     }
 
     /** @return array<string, mixed> */
@@ -682,6 +695,12 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         @endif
         @if ($outlet->usesTables())
             <button type="button" wire:click="openTablePicker('select')" class="chip cursor-pointer"><i class="fa-solid fa-chair"></i>Denah meja</button>
+        @endif
+        @if ($pendingTicket)
+            <a href="{{ route('orders.kitchen-ticket', ['order' => $pendingTicket['order'], 'batch' => $pendingTicket['batch']]) }}" target="_blank"
+               x-data x-on:click="$wire.set('pendingTicket', null)" class="chip cursor-pointer a-bg-lt a-text a-border">
+                <i class="fa-solid fa-print"></i>Cetak tiket dapur {{ $pendingTicket['number'] }}{{ $pendingTicket['batch'] > 1 ? ' (tambahan)' : '' }}
+            </a>
         @endif
         <x-input-error :messages="$errors->get('shift')" />
     </div>
@@ -1133,6 +1152,9 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             <div class="px-6 pb-6 grid grid-cols-2 gap-2.5">
                 <a href="{{ route('receipts.show', ['token' => $order->receipt_token, 'print' => 1]) }}" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-print"></i>Cetak Struk</a>
                 <a href="{{ $order->receiptUrl() }}" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-qrcode"></i>Struk Digital</a>
+                @if ($pendingTicket && $pendingTicket['order'] === $order->id)
+                    <a href="{{ route('orders.kitchen-ticket', ['order' => $order->id, 'batch' => $pendingTicket['batch']]) }}" target="_blank" x-on:click="$wire.set('pendingTicket', null)" class="btn btn-secondary col-span-2"><i class="fa-solid fa-fire-burner"></i>Cetak Tiket Dapur</a>
+                @endif
                 <button type="button" x-on:click="$dispatch('close')" class="btn btn-primary col-span-2"><i class="fa-solid fa-plus"></i>Pesanan Baru</button>
             </div>
         @endif

@@ -112,7 +112,7 @@ class PlaceOrderTest extends TestCase
         $this->assertSame(1260, $order->tax_amount);
         $this->assertSame(13860, $order->total);
         $this->assertSame(6140, $order->change_amount);
-        $this->assertSame(OrderStatus::Completed, $order->status);
+        $this->assertSame(OrderStatus::Confirmed, $order->status); // Kendari memakai layar dapur: menunggu disajikan
         $this->assertSame(PaymentStatus::Paid, $order->payment_status);
     }
 
@@ -276,7 +276,7 @@ class PlaceOrderTest extends TestCase
 
         $this->assertTrue($order->cashier->is($this->kasir));
         $history = $order->statusHistories()->sole();
-        $this->assertSame(OrderStatus::Completed, $history->to_status);
+        $this->assertSame(OrderStatus::Confirmed, $history->to_status);
         $this->assertTrue($history->user->is($this->kasir));
         $this->assertSame(32, strlen($order->receipt_token));
     }

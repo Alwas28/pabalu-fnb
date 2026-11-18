@@ -28,6 +28,8 @@ new #[Layout('layouts.app')] class extends Component
     public bool $dineInPayLater = false;
     public bool $tableStatusEnabled = false;
     public string $kitchenMode = 'ticket';
+    public bool $kitchenUsePreparing = true;
+    public bool $kitchenUseReady = true;
 
     // Pajak & service charge
     public bool $taxEnabled = false;
@@ -63,6 +65,8 @@ new #[Layout('layouts.app')] class extends Component
                 'dineInPayLater' => $outlet->dine_in_pay_later,
                 'tableStatusEnabled' => $outlet->table_status_enabled,
                 'kitchenMode' => $outlet->kitchen_mode->value,
+                'kitchenUsePreparing' => $outlet->kitchen_use_preparing,
+                'kitchenUseReady' => $outlet->kitchen_use_ready,
                 'taxEnabled' => $outlet->tax_enabled,
                 'taxRate' => (string) (float) $outlet->tax_rate,
                 'serviceChargeEnabled' => $outlet->service_charge_enabled,
@@ -116,6 +120,8 @@ new #[Layout('layouts.app')] class extends Component
             'dineInPayLater' => ['boolean'],
             'tableStatusEnabled' => ['boolean'],
             'kitchenMode' => ['required', Rule::enum(KitchenMode::class)],
+            'kitchenUsePreparing' => ['boolean'],
+            'kitchenUseReady' => ['boolean'],
             'taxEnabled' => ['boolean'],
             'taxRate' => [Rule::requiredIf($this->taxEnabled), 'nullable', 'numeric', 'min:0', 'max:100'],
             'serviceChargeEnabled' => ['boolean'],
@@ -157,6 +163,8 @@ new #[Layout('layouts.app')] class extends Component
             'dine_in_pay_later' => $this->dineInPayLater,
             'table_status_enabled' => $this->tablesEnabled && $this->tableStatusEnabled,
             'kitchen_mode' => $this->kitchenMode,
+            'kitchen_use_preparing' => $this->kitchenUsePreparing,
+            'kitchen_use_ready' => $this->kitchenUseReady,
             'tax_enabled' => $this->taxEnabled,
             'tax_rate' => $this->taxEnabled ? $this->taxRate : 0,
             'service_charge_enabled' => $this->serviceChargeEnabled,
@@ -292,7 +300,7 @@ new #[Layout('layouts.app')] class extends Component
         <div class="card-body grid gap-3 sm:grid-cols-2">
             @foreach (KitchenMode::cases() as $mode)
                 <label class="choice-card">
-                    <input type="radio" wire:model="kitchenMode" value="{{ $mode->value }}" name="kitchenMode">
+                    <input type="radio" wire:model.live="kitchenMode" value="{{ $mode->value }}" name="kitchenMode">
                     <span class="toggle-icon"><i class="fa-solid {{ $mode->icon() }}"></i></span>
                     <span>
                         <span class="block text-[13px] font-semibold text-pb-text">{{ $mode->label() }}</span>
@@ -301,6 +309,16 @@ new #[Layout('layouts.app')] class extends Component
                 </label>
             @endforeach
             <x-input-error :messages="$errors->get('kitchenMode')" class="sm:col-span-2" />
+            @if ($kitchenMode === 'display')
+                <div class="sm:col-span-2 flex flex-col gap-2">
+                    <div class="f-label !mb-0">Tahap antrean dapur</div>
+                    <p class="f-hint !mt-0">"Antre" dan "Disajikan" selalu dipakai. Nyalakan tahap tambahan bila dapur ingin melacaknya.</p>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <x-toggle wire:model="kitchenUsePreparing" label="Dimasak" icon="fa-fire" description="Staf dapur menandai item mulai dimasak" />
+                        <x-toggle wire:model="kitchenUseReady" label="Siap" icon="fa-bell" description="Item selesai dimasak, menunggu diantar ke pelanggan" />
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 

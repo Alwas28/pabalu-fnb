@@ -21,10 +21,17 @@ use Illuminate\Validation\ValidationException;
 class OrderWriter
 {
     /**
+     * Tulis baris keranjang sebagai item order. Item masuk ke dapur sebagai satu batch
+     * (pesanan awal = 1, tiap tambahan open bill = batch berikutnya).
+     *
      * @param  list<CartLine>  $lines
      */
     public static function writeLines(Order $order, array $lines): void
     {
+        $outlet = $order->outlet;
+        $batch = (int) $order->items()->max('kitchen_batch') + 1;
+        $kitchenStatus = KitchenFlow::initialItemStatus($outlet);
+
         foreach ($lines as $line) {
             $item = $order->items()->create([
                 'menu_item_id' => $line->menuItem->id,
@@ -35,6 +42,8 @@ class OrderWriter
                 'quantity' => $line->quantity,
                 'line_total' => $line->lineTotal(),
                 'notes' => $line->notes,
+                'kitchen_status' => $kitchenStatus,
+                'kitchen_batch' => $batch,
             ]);
 
             foreach ($line->modifiers as $modifier) {

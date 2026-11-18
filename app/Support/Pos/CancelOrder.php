@@ -2,6 +2,7 @@
 
 namespace App\Support\Pos;
 
+use App\Enums\KitchenItemStatus;
 use App\Enums\OrderStatus;
 use App\Enums\Permission;
 use App\Models\Order;
@@ -45,6 +46,7 @@ class CancelOrder
                 'cancel_reason' => $data['reason'],
             ]);
 
+            $order->items()->update(['kitchen_status' => KitchenItemStatus::Cancelled, 'kitchen_updated_at' => now()]);
             OrderWriter::history($order, $from, OrderStatus::Cancelled, $user, $data['reason']);
             OrderWriter::releaseIfFree($order->diningTable);
 

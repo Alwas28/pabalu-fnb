@@ -145,7 +145,7 @@ class OpenBillTest extends TestCase
         ]);
 
         $order->refresh();
-        $this->assertSame(OrderStatus::Completed, $order->status);
+        $this->assertSame(OrderStatus::Confirmed, $order->status); // lunas, masih di antrean dapur
         $this->assertSame(PaymentStatus::Paid, $order->payment_status);
         $this->assertSame(11550, $order->total); // (12.000 − 2.000) + 500 + 1.050
         $this->assertSame(13450, $order->change_amount);

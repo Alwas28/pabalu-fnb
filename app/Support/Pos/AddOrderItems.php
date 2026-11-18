@@ -38,6 +38,7 @@ class AddOrderItems
             $order->update(OrderWriter::totalsAttributes($totals, null, 0, null));
 
             OrderWriter::history($order, $order->status, $order->status, $cashier, 'Tambah '.collect($lines)->sum('quantity').' item');
+            KitchenFlow::sync($order, $cashier, 'Item tambahan masuk dapur');
 
             return $order;
         });

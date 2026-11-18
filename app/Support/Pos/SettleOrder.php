@@ -2,7 +2,6 @@
 
 namespace App\Support\Pos;
 
-use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -40,15 +39,13 @@ class SettleOrder
 
             $totals = OrderTotals::calculate($outlet, (int) $order->items()->sum('line_total'), $discountType, $discountValue);
             $payments = PaymentAllocator::allocate($data['payments'], $totals->total);
-            $from = $order->status;
 
-            $order->update(OrderWriter::totalsAttributes($totals, $discountType, $discountValue, $data['discount_reason'] ?? null) + [
-                'status' => OrderStatus::Completed,
-                'completed_at' => now(),
-            ]);
+            $order->update(OrderWriter::totalsAttributes($totals, $discountType, $discountValue, $data['discount_reason'] ?? null));
 
             OrderWriter::writePayments($order, $payments, $cashier, $shift);
-            OrderWriter::history($order, $from, OrderStatus::Completed, $cashier, 'Pesanan dilunasi');
+            OrderWriter::history($order, $order->status, $order->status, $cashier, 'Pesanan dilunasi');
+            // Selesai bila semua item sudah tersaji; bila dapur masih memproses, status mengikuti dapur.
+            KitchenFlow::sync($order, $cashier);
             OrderWriter::releaseIfFree($order->diningTable);
 
             return $order;

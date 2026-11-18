@@ -34,6 +34,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('outlets/{outlet}/orders', [OrderController::class, 'store'])->name('outlets.orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::get('orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
+        Route::get('orders/{order}/kitchen-ticket', [OrderController::class, 'kitchenTicket'])->name('orders.kitchen-ticket');
 
         // Open bill (dine-in bayar nanti)
         Route::post('orders/{order}/items', [OrderController::class, 'addItems'])->name('orders.items.store');

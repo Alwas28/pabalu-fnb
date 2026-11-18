@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,7 +43,7 @@ class DiningTable extends Model
     /** Open bill (belum lunas, belum dibatalkan) di meja ini. */
     public function openOrders(): HasMany
     {
-        return $this->orders()->whereIn('status', OrderStatus::openStatuses());
+        return $this->orders()->open();
     }
 
     public function isOccupied(): bool

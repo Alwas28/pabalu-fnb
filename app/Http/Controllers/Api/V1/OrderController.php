@@ -11,6 +11,7 @@ use App\Support\Pos\CancelOrder;
 use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
 use App\Support\Pos\SettleOrder;
+use App\Support\Receipt\EscPosKitchenTicket;
 use App\Support\Receipt\EscPosReceipt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,6 +68,32 @@ class OrderController extends Controller
         return (new OrderResource($order->loadReceipt()))
             ->response()
             ->setStatusCode($order->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
+     * Tiket dapur ESC/POS (tanpa harga) untuk outlet mode cetak tiket.
+     * ?batch=N memilih kiriman tertentu (default: kiriman terakhir).
+     */
+    public function kitchenTicket(Request $request, Order $order): JsonResponse
+    {
+        Gate::authorize('view', $order);
+
+        $request->validate([
+            'batch' => ['nullable', 'integer', 'min:1'],
+            'paper_width' => ['nullable', 'integer', Rule::in(Outlet::RECEIPT_PAPER_WIDTHS)],
+        ]);
+
+        $ticket = new EscPosKitchenTicket($order, $request->integer('batch') ?: null, $request->integer('paper_width') ?: null);
+
+        return response()->json([
+            'data' => [
+                'order_id' => $order->id,
+                'batch' => $ticket->batch(),
+                'columns' => $ticket->columns(),
+                'escpos_base64' => base64_encode($ticket->bytes()),
+                'text' => $ticket->text(),
+            ],
+        ]);
     }
 
     /** Tambah item ke open bill. */
