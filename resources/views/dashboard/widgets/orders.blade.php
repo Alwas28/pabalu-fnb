@@ -1,30 +1,16 @@
 @php
+    use App\Support\Money;
+
     $isKasir = $role === \App\Enums\UserRole::Kasir;
-    $orders = [
-        ['id' => '#ORD-2841', 'layanan' => 'Dine-in · Meja 4', 'item' => 3, 'total' => 'Rp 87.000', 'bayar' => 'Lunas', 'status' => 'Selesai', 'kasir' => 'Dedi', 'waktu' => '10 mnt lalu'],
-        ['id' => '#ORD-2840', 'layanan' => 'Takeaway', 'item' => 2, 'total' => 'Rp 46.000', 'bayar' => 'Lunas', 'status' => 'Siap', 'kasir' => 'Sari', 'waktu' => '18 mnt lalu'],
-        ['id' => '#ORD-2839', 'layanan' => 'Dine-in · Meja 7', 'item' => 5, 'total' => 'Rp 162.000', 'bayar' => 'Pending', 'status' => 'Diproses', 'kasir' => 'Dedi', 'waktu' => '25 mnt lalu'],
-        ['id' => '#ORD-2838', 'layanan' => 'Delivery', 'item' => 4, 'total' => 'Rp 118.000', 'bayar' => 'Lunas', 'status' => 'Selesai', 'kasir' => 'Sari', 'waktu' => '1 jam lalu'],
-        ['id' => '#ORD-2837', 'layanan' => 'Takeaway', 'item' => 1, 'total' => 'Rp 22.000', 'bayar' => 'Refund', 'status' => 'Batal', 'kasir' => 'Dedi', 'waktu' => '2 jam lalu'],
-        ['id' => '#ORD-2836', 'layanan' => 'Dine-in · Meja 2', 'item' => 6, 'total' => 'Rp 214.000', 'bayar' => 'Sebagian', 'status' => 'Disajikan', 'kasir' => 'Dedi', 'waktu' => '2 jam lalu'],
-    ];
-
-    // Kasir hanya melihat order dari shift-nya sendiri.
-    if ($isKasir) {
-        $orders = array_values(array_filter($orders, fn (array $o) => $o['kasir'] === 'Dedi'));
-    }
-
-    $bayarBadge = ['Lunas' => 'badge-green', 'Pending' => 'badge-amber', 'Sebagian' => 'badge-blue', 'Refund' => 'badge-red'];
-    $statusBadge = ['Selesai' => 'badge-green', 'Siap' => 'badge-blue', 'Diproses' => 'badge-amber', 'Disajikan' => 'badge-gray', 'Batal' => 'badge-red'];
+    $orders = $data->recentOrders();
 @endphp
 
 <div class="card overflow-hidden">
     <div class="card-header">
         <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ $isKasir ? 'Order Shift Ini' : 'Order Terbaru' }}</div>
-        <button type="button" class="btn-ghost font-semibold" x-data
-                @click="Pabalu.toast('info', 'Modul Pesanan segera hadir')">
-            Lihat Semua <i class="fa-solid fa-arrow-right text-[10px]"></i>
-        </button>
+        @can('orders.view')
+            <a href="{{ route('orders.index') }}" wire:navigate class="btn-ghost font-semibold">Lihat Semua <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+        @endcan
     </div>
     <div class="overflow-x-auto">
         <table class="tbl">
@@ -43,20 +29,28 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($orders as $o)
+                @forelse ($orders as $order)
                     <tr>
-                        <td><code class="text-xs font-bold a-text font-mono">{{ $o['id'] }}</code></td>
-                        <td class="td-main">{{ $o['layanan'] }}</td>
-                        <td>{{ $o['item'] }} item</td>
-                        <td class="font-semibold" style="color:var(--text)">{{ $o['total'] }}</td>
-                        <td><span class="badge {{ $bayarBadge[$o['bayar']] ?? 'badge-gray' }}">{{ $o['bayar'] }}</span></td>
-                        <td><span class="badge {{ $statusBadge[$o['status']] ?? 'badge-gray' }}">{{ $o['status'] }}</span></td>
+                        <td class="td-main">
+                            @can('view', $order)
+                                <a href="{{ route('orders.show', $order) }}" wire:navigate class="link">{{ $order->number }}</a>
+                            @else
+                                {{ $order->number }}
+                            @endcan
+                        </td>
+                        <td>{{ $order->service_type->label() }}{{ $order->table_number ? ' · Meja '.$order->table_number : '' }}</td>
+                        <td>{{ $order->items_count }}</td>
+                        <td class="whitespace-nowrap">{{ Money::format($order->total) }}</td>
+                        <td><span class="badge {{ $order->payment_status->badge() }}">{{ $order->payment_status->label() }}</span></td>
+                        <td><span class="badge {{ $order->status->badge() }}">{{ $order->status->label() }}</span></td>
                         @unless ($isKasir)
-                            <td>{{ $o['kasir'] }}</td>
+                            <td>{{ $order->cashier ? strtok($order->cashier->name, ' ') : '—' }}</td>
                         @endunless
-                        <td class="text-xs">{{ $o['waktu'] }}</td>
+                        <td class="whitespace-nowrap">{{ $order->placed_at->locale('id')->diffForHumans() }}</td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="8" class="text-center !py-8">{{ $isKasir ? 'Belum ada order di shift ini.' : 'Belum ada order.' }}</td></tr>
+                @endforelse
             </tbody>
         </table>
     </div>

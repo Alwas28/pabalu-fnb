@@ -71,9 +71,9 @@ new #[Layout('layouts.app')] #[Title('Pembelian')] class extends Component
 
 <div class="flex flex-col gap-5">
     <div class="stat-grid !grid-cols-1 sm:!grid-cols-3 max-w-3xl">
-        <div class="stat-card"><div class="stat-label">Menunggu barang</div><div class="stat-num">{{ $this->summary['waiting'] }} PO</div></div>
-        <div class="stat-card"><div class="stat-label">Sisa tagihan supplier</div><div class="stat-num trend-down">{{ Money::format($this->summary['outstanding']) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Nilai PO bulan ini</div><div class="stat-num">{{ Money::format($this->summary['month']) }}</div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Menunggu barang</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ $this->summary['waiting'] }} PO</div></div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Sisa tagihan supplier</div><div class="stat-num order-first whitespace-nowrap !text-[22px] trend-down">{{ Money::format($this->summary['outstanding']) }}</div></div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Nilai PO bulan ini</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ Money::format($this->summary['month']) }}</div></div></div>
     </div>
 
     <div class="card overflow-hidden animate-fadeUp">

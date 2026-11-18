@@ -1,8 +1,26 @@
 @php
+    use App\Support\Reports\Period;
+
+    // Penjualan bersih (definisi FinanceMetrics) untuk 7 hari, 6 bulan & 5 tahun terakhir.
+    $now = $data->now();
+    $week = collect($data->last7Days());
+    $months = collect(range(5, 0))->map(fn ($i) => $now->startOfMonth()->subMonthsNoOverflow($i));
+    $years = collect(range(4, 0))->map(fn ($i) => $now->startOfYear()->subYears($i));
+    $net = fn ($from, $to) => $data->metrics(Period::make($from->toDateString(), $to->toDateString(), $data->timezone))->summary()['net_sales'];
+
     $chart = [
-        'minggu' => ['labels' => ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'], 'data' => [5200000, 7800000, 4100000, 8400000, 6900000, 9200000, 7100000]],
-        'bulan' => ['labels' => ['Jul', 'Agu', 'Sep', 'Okt', 'Nov'], 'data' => [38500000, 42100000, 39800000, 45200000, 48700000]],
-        'tahun' => ['labels' => ['2022', '2023', '2024', '2025', '2026'], 'data' => [320000000, 415000000, 398000000, 520000000, 470000000]],
+        'minggu' => [
+            'labels' => $week->keys()->map(fn ($d) => \Carbon\Carbon::parse($d)->translatedFormat('D'))->values(),
+            'data' => $week->pluck('net_sales')->values(),
+        ],
+        'bulan' => [
+            'labels' => $months->map(fn ($m) => $m->translatedFormat('M')),
+            'data' => $months->map(fn ($m) => $net($m, $m->endOfMonth())),
+        ],
+        'tahun' => [
+            'labels' => $years->map(fn ($y) => $y->format('Y')),
+            'data' => $years->map(fn ($y) => $net($y, $y->endOfYear())),
+        ],
     ];
 @endphp
 
@@ -21,5 +39,6 @@
         <div class="relative h-[260px]" wire:ignore>
             <canvas x-ref="canvas"></canvas>
         </div>
+        <p class="text-[11px] text-pb-muted mt-2 px-1">Penjualan bersih (subtotal − diskon − refund), tanpa pajak &amp; service.</p>
     </div>
 </div>

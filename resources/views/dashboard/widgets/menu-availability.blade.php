@@ -1,37 +1,33 @@
 @php
-    $menus = [
-        ['nama' => 'Kopi Susu Gula Aren', 'kategori' => 'Minuman', 'harga' => 'Rp 22.000', 'varian' => 2, 'status' => 'Tersedia'],
-        ['nama' => 'Nasi Goreng Spesial', 'kategori' => 'Makanan', 'harga' => 'Rp 28.000', 'varian' => 1, 'status' => 'Tersedia'],
-        ['nama' => 'Croissant Cokelat', 'kategori' => 'Camilan', 'harga' => 'Rp 18.000', 'varian' => 0, 'status' => 'Habis'],
-        ['nama' => 'Matcha Latte', 'kategori' => 'Minuman', 'harga' => 'Rp 26.000', 'varian' => 2, 'status' => 'Habis'],
-        ['nama' => 'Mie Ayam Bakso', 'kategori' => 'Makanan', 'harga' => 'Rp 25.000', 'varian' => 1, 'status' => 'Tersedia'],
-        ['nama' => 'Es Teh Lemon', 'kategori' => 'Minuman', 'harga' => 'Rp 12.000', 'varian' => 2, 'status' => 'Habis'],
-    ];
+    use App\Support\Money;
+
+    $outlet = $data->outlet;
+    $items = $data->menuAvailability();
 @endphp
 
 <div class="card overflow-hidden">
     <div class="card-header">
-        <div class="card-title"><i class="fa-solid fa-utensils"></i>Ketersediaan Menu</div>
-        <button type="button" class="btn-ghost font-semibold" x-data
-                @click="Pabalu.toast('info', 'Modul Daftar Menu segera hadir')">
-            Kelola Menu <i class="fa-solid fa-arrow-right text-[10px]"></i>
-        </button>
+        <div class="card-title"><i class="fa-solid fa-utensils"></i>Ketersediaan Menu{{ $outlet ? ' · '.$outlet->name : '' }}</div>
+        @can('menu.manage')
+            <a href="{{ route('menu.items.index') }}" wire:navigate class="btn-ghost font-semibold">Kelola <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+        @endcan
     </div>
     <div class="overflow-x-auto">
         <table class="tbl">
-            <thead>
-                <tr><th>Menu</th><th>Kategori</th><th>Harga</th><th>Varian</th><th>Status</th></tr>
-            </thead>
+            <thead><tr><th>Menu</th><th>Kategori</th><th class="text-right">Harga</th><th>Varian</th><th>Status</th></tr></thead>
             <tbody>
-                @foreach ($menus as $m)
+                @forelse ($items as $item)
+                    @php $available = $outlet && $item->isAvailableAt($outlet); @endphp
                     <tr>
-                        <td class="td-main">{{ $m['nama'] }}</td>
-                        <td>{{ $m['kategori'] }}</td>
-                        <td class="font-semibold" style="color:var(--text)">{{ $m['harga'] }}</td>
-                        <td>{{ $m['varian'] ?: '—' }}</td>
-                        <td><span class="badge {{ $m['status'] === 'Tersedia' ? 'badge-green' : 'badge-red' }}">{{ $m['status'] }}</span></td>
+                        <td class="td-main">{{ $item->name }}</td>
+                        <td>{{ $item->category?->name ?? '—' }}</td>
+                        <td class="text-right whitespace-nowrap">{{ Money::format($outlet ? $item->priceAt($outlet) : $item->price) }}</td>
+                        <td>{{ $item->variants->count() }}</td>
+                        <td><span class="badge {{ $available ? 'badge-green' : 'badge-red' }}">{{ $available ? 'Tersedia' : 'Habis' }}</span></td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="5" class="text-center !py-8">Belum ada menu aktif.</td></tr>
+                @endforelse
             </tbody>
         </table>
     </div>

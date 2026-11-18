@@ -1,34 +1,30 @@
 @php
-    $topMenu = [
-        ['nama' => 'Kopi Susu Gula Aren', 'kategori' => 'Minuman', 'terjual' => 312, 'persen' => 85, 'warna' => '#f59e0b'],
-        ['nama' => 'Nasi Goreng Spesial', 'kategori' => 'Makanan', 'terjual' => 248, 'persen' => 67, 'warna' => '#818cf8'],
-        ['nama' => 'Es Teh Lemon', 'kategori' => 'Minuman', 'terjual' => 201, 'persen' => 54, 'warna' => '#34d399'],
-        ['nama' => 'Mie Ayam Bakso', 'kategori' => 'Makanan', 'terjual' => 189, 'persen' => 51, 'warna' => '#60a5fa'],
-        ['nama' => 'Pisang Goreng Keju', 'kategori' => 'Camilan', 'terjual' => 143, 'persen' => 39, 'warna' => '#f87171'],
-    ];
+    use App\Support\Money;
+
+    $top = $data->topMenu();
+    $maxQty = max(1, (int) $top->max('qty'));
 @endphp
 
 <div class="card">
     <div class="card-header">
         <div class="card-title"><i class="fa-solid fa-trophy"></i>Menu Terlaris</div>
-        <span class="chip">Bulan Ini</span>
+        @can('reports.view')
+            <a href="{{ route('reports.index', ['report' => 'menu']) }}" wire:navigate class="btn-ghost font-semibold">Bulan ini <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+        @else
+            <span class="chip">Bulan ini</span>
+        @endcan
     </div>
-    <div class="py-2">
-        @foreach ($topMenu as $i => $m)
-            <div class="list-row">
-                <div class="w-[26px] h-[26px] rounded-lg grid place-items-center text-[11px] font-bold shrink-0"
-                     style="background:{{ $m['warna'] }}22;color:{{ $m['warna'] }}">{{ $i + 1 }}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-baseline justify-between gap-2">
-                        <div class="text-[13px] font-semibold text-pb-text truncate">{{ $m['nama'] }}</div>
-                        <span class="text-[10.5px] text-pb-muted shrink-0">{{ $m['kategori'] }}</span>
-                    </div>
-                    <div class="flex items-center gap-2 mt-1">
-                        <div class="prog-bar flex-1"><div class="prog-fill" style="width:{{ $m['persen'] }}%;background:{{ $m['warna'] }}"></div></div>
-                        <span class="text-[11px] text-pb-muted shrink-0">{{ $m['terjual'] }} porsi</span>
-                    </div>
+    <div class="card-body flex flex-col gap-3.5">
+        @forelse ($top as $i => $item)
+            <div>
+                <div class="flex items-center justify-between gap-2 text-[13px]">
+                    <span class="font-semibold text-pb-text truncate"><span class="text-pb-muted mr-1.5">{{ $i + 1 }}.</span>{{ $item->name }}</span>
+                    <span class="text-pb-sub whitespace-nowrap">{{ (int) $item->qty }} porsi · {{ Money::format((int) $item->revenue) }}</span>
                 </div>
+                <div class="prog-bar mt-1.5"><div class="prog-fill" style="width: {{ round($item->qty / $maxQty * 100) }}%"></div></div>
             </div>
-        @endforeach
+        @empty
+            <div class="text-[13px] text-pb-muted text-center py-6">Belum ada penjualan bulan ini.</div>
+        @endforelse
     </div>
 </div>

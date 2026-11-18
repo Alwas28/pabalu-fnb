@@ -109,7 +109,7 @@ class RoleAccessTest extends TestCase
             'manager' => [UserRole::ManagerOutlet, ['Penjualan Hari Ini', 'Grafik Penjualan', 'Stok Bahan Kritis'], ['Laba Kotor', 'Performa Outlet']],
             'supervisor' => [UserRole::Supervisor, ['Menunggu Persetujuan', 'Order Terbaru'], ['Laba Kotor', 'Grafik Penjualan']],
             'kasir' => [UserRole::Kasir, ['Ringkasan Shift', 'Order Shift Ini', 'Buka Kasir'], ['Laba Kotor', 'Grafik Penjualan', 'Performa Outlet', 'Menunggu Persetujuan']],
-            'kitchen' => [UserRole::KitchenStaff, ['Sedang Dimasak', 'Mulai Masak'], ['Rp ', 'Order Baru', 'Laba Kotor']],
+            'kitchen' => [UserRole::KitchenStaff, ['Sedang Dimasak', 'Buka layar dapur'], ['Rp ', 'Order Baru', 'Laba Kotor']],
             'inventory' => [UserRole::InventoryStaff, ['Purchase Order', 'Stok Bahan Kritis', 'Terima Barang'], ['Laba Kotor', 'Grafik Penjualan', 'Order Terbaru']],
         ];
     }

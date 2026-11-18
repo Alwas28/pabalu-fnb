@@ -184,10 +184,10 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
         <div class="card"><div class="card-body text-center text-pb-muted">Belum ada outlet yang ditugaskan.</div></div>
     @else
         <div class="stat-grid">
-            <div class="stat-card"><div class="stat-label">Nilai persediaan</div><div class="stat-num">{{ Money::format($rows->sum('value')) }}</div></div>
-            <div class="stat-card"><div class="stat-label">Bahan aktif</div><div class="stat-num">{{ $rows->count() }}</div></div>
-            <div class="stat-card"><div class="stat-label">Di bawah minimum</div><div class="stat-num trend-down">{{ $rows->where('status', 'low')->count() }}</div></div>
-            <div class="stat-card"><div class="stat-label">Stok minus</div><div class="stat-num trend-down">{{ $rows->where('status', 'minus')->count() }}</div></div>
+            <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Nilai persediaan</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ Money::format($rows->sum('value')) }}</div></div></div>
+            <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Bahan aktif</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ $rows->count() }}</div></div></div>
+            <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Di bawah minimum</div><div class="stat-num order-first whitespace-nowrap !text-[22px] trend-down">{{ $rows->where('status', 'low')->count() }}</div></div></div>
+            <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Stok minus</div><div class="stat-num order-first whitespace-nowrap !text-[22px] trend-down">{{ $rows->where('status', 'minus')->count() }}</div></div></div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">

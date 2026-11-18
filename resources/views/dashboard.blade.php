@@ -1,22 +1,18 @@
 @php
     $user = auth()->user();
-    $role = $user->currentRole();
-    $outlet = $user->currentOutlet();
-    $dash = \App\Support\RoleDashboard::for($role, $outlet?->name ?? 'outlet');
+    $data = new \App\Support\DashboardData($user);
+    $role = $data->role;
+    $dash = \App\Support\RoleDashboard::for($data);
     $shortcuts = \App\Support\Navigation::shortcuts($user);
     $shortcutColors = ['#818cf8', '#34d399', '#f87171', null];
 @endphp
 
 <x-app-layout title="Dashboard">
     <x-slot name="actions">
-        <span class="chip hidden md:inline-flex items-center gap-1.5" title="Angka di halaman ini masih data contoh">
-            <i class="fa-solid fa-flask"></i>Data contoh
-        </span>
-        @if ($dash['action'])
-            <button type="button" class="btn btn-primary !px-3 sm:!px-[18px]" aria-label="{{ $dash['action']['label'] }}"
-                    x-data @click="Pabalu.toast('info', @js($dash['action']['label'].' segera hadir'))">
+        @if ($dash['action'] && Route::has($dash['action']['route']))
+            <a href="{{ route($dash['action']['route']) }}" wire:navigate class="btn btn-primary !px-3 sm:!px-[18px]" aria-label="{{ $dash['action']['label'] }}">
                 <i class="fa-solid {{ $dash['action']['icon'] }}"></i><span class="hidden sm:inline">{{ $dash['action']['label'] }}</span>
-            </button>
+            </a>
         @endif
     </x-slot>
 
@@ -35,7 +31,7 @@
                     <i class="fa-solid {{ $s['icon'] }}"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="stat-num">{{ $s['value'] }}</div>
+                    <div class="stat-num whitespace-nowrap">{{ $s['value'] }}</div>
                     <div class="stat-label">{{ $s['label'] }}</div>
                     @if ($s['up'] === null)
                         <div class="stat-trend text-pb-sub !font-medium">{{ $s['note'] }}</div>
@@ -51,18 +47,17 @@
 
     <!-- ── Pintasan (sesuai hak akses) ── -->
     @if (count($shortcuts) > 1)
-        <div class="qnav-grid animate-fadeUp d1" x-data>
+        <div class="qnav-grid animate-fadeUp d1">
             @foreach ($shortcuts as $i => $q)
                 @php $color = $shortcutColors[$i % count($shortcutColors)]; @endphp
-                <button type="button" class="qnav-item" style="--qc: {{ $color ?? 'var(--ac)' }}"
-                        @click="Pabalu.toast('info', @js($q['label'].' segera hadir'))">
+                <a href="{{ $q['route'] ? route($q['route']) : '#' }}" wire:navigate class="qnav-item" style="--qc: {{ $color ?? 'var(--ac)' }}">
                     <div class="qnav-icon"
                          style="{{ $color ? "background:{$color}24;color:{$color}" : 'background:var(--ac-lt);color:var(--ac)' }}">
                         <i class="fa-solid {{ $q['icon'] }}"></i>
                     </div>
                     <span class="text-[13px] font-semibold text-pb-text">{{ $q['label'] }}</span>
                     <i class="fa-solid fa-chevron-right ml-auto text-[10px] text-pb-muted"></i>
-                </button>
+                </a>
             @endforeach
         </div>
     @endif
@@ -71,7 +66,7 @@
     @foreach ($dash['rows'] as $i => $row)
         <div class="{{ count($row) > 1 ? 'two-col' : '' }} animate-fadeUp d{{ min($i + 2, 5) }}">
             @foreach ($row as $widget)
-                @include('dashboard.widgets.'.$widget, ['role' => $role])
+                @include('dashboard.widgets.'.$widget, ['role' => $role, 'data' => $data])
             @endforeach
         </div>
     @endforeach

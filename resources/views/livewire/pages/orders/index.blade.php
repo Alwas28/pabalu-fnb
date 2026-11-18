@@ -90,12 +90,16 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
 <div class="flex flex-col gap-5">
     <div class="stat-grid !grid-cols-2 max-w-xl">
         <div class="stat-card animate-fadeUp">
+            <div class="min-w-0 flex flex-col gap-1">
+            <div class="stat-num whitespace-nowrap !text-[22px]">{{ number_format($this->summary['orders'], 0, ',', '.') }}</div>
             <div class="stat-label">Jumlah order</div>
-            <div class="stat-num">{{ number_format($this->summary['orders'], 0, ',', '.') }}</div>
+            </div>
         </div>
         <div class="stat-card animate-fadeUp d1">
+            <div class="min-w-0 flex flex-col gap-1">
+            <div class="stat-num whitespace-nowrap !text-[22px]">{{ Money::format($this->summary['revenue']) }}</div>
             <div class="stat-label">Total penjualan</div>
-            <div class="stat-num">{{ Money::format($this->summary['revenue']) }}</div>
+            </div>
         </div>
     </div>
 

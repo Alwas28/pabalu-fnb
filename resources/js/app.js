@@ -136,7 +136,13 @@ document.addEventListener('alpine:init', () => {
                 const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
                 const tickColor = isDark ? '#64748b' : '#94a3b8';
                 const ac = v('--ac');
-                const rupiah = (n) => 'Rp ' + (n / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 });
+                // Sumbu ringkas mengikuti skala: rb / Jt / M. Tooltip menampilkan nominal penuh.
+                const rupiah = (n) => {
+                    const abs = Math.abs(n);
+                    const [div, unit] = abs >= 1e9 ? [1e9, ' M'] : abs >= 1e6 ? [1e6, ' Jt'] : abs >= 1e3 ? [1e3, ' rb'] : [1, ''];
+                    return 'Rp ' + (n / div).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + unit;
+                };
+                const fullRupiah = (n) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
                 chart?.destroy();
                 chart = new Chart(this.$refs.canvas, {
@@ -173,14 +179,14 @@ document.addEventListener('alpine:init', () => {
                                 padding: 12,
                                 cornerRadius: 12,
                                 displayColors: false,
-                                callbacks: { label: (ctx) => rupiah(ctx.raw) + ' Jt' },
+                                callbacks: { label: (ctx) => fullRupiah(ctx.raw) },
                             },
                         },
                         scales: {
                             x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11, family: 'Plus Jakarta Sans' } } },
                             y: {
                                 grid: { color: gridColor },
-                                ticks: { color: tickColor, font: { size: 11, family: 'Plus Jakarta Sans' }, callback: (n) => rupiah(n) + 'Jt' },
+                                ticks: { color: tickColor, font: { size: 11, family: 'Plus Jakarta Sans' }, callback: (n) => rupiah(n), maxTicksLimit: 6 },
                             },
                         },
                     },

@@ -179,10 +179,10 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
     </div>
 
     <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Penjualan bersih</div><div class="stat-num">{{ Money::format($s['net_sales']) }}</div><div class="text-[11.5px] text-pb-muted">{{ number_format($s['orders'], 0, ',', '.') }} transaksi</div></div>
-        <div class="stat-card"><div class="stat-label">Laba kotor</div><div class="stat-num">{{ Money::format($s['gross_profit']) }}</div><div class="text-[11.5px] text-pb-muted">margin {{ number_format($s['gross_margin'], 1, ',', '.') }}%</div></div>
-        <div class="stat-card"><div class="stat-label">Pengeluaran operasional</div><div class="stat-num trend-down">{{ Money::format($s['expenses']) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Laba operasional</div><div @class(['stat-num', 'trend-up' => $s['operating_profit'] > 0, 'trend-down' => $s['operating_profit'] < 0])>{{ Money::format($s['operating_profit']) }}</div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Penjualan bersih</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ Money::format($s['net_sales']) }}</div><div class="text-[11.5px] text-pb-muted">{{ number_format($s['orders'], 0, ',', '.') }} transaksi</div></div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Laba kotor</div><div class="stat-num order-first whitespace-nowrap !text-[22px]">{{ Money::format($s['gross_profit']) }}</div><div class="text-[11.5px] text-pb-muted">margin {{ number_format($s['gross_margin'], 1, ',', '.') }}%</div></div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Pengeluaran operasional</div><div class="stat-num order-first whitespace-nowrap !text-[22px] trend-down">{{ Money::format($s['expenses']) }}</div></div></div>
+        <div class="stat-card"><div class="min-w-0 flex flex-col gap-1"><div class="stat-label">Laba operasional</div><div @class(['stat-num', 'trend-up' => $s['operating_profit'] > 0, 'trend-down' => $s['operating_profit'] < 0])>{{ Money::format($s['operating_profit']) }}</div></div></div>
     </div>
 
     <div class="grid gap-5 lg:grid-cols-3">

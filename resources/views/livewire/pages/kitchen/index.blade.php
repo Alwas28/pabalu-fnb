@@ -8,11 +8,13 @@ use App\Support\Pos\KitchenFlow;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] #[Title('Antrean Dapur')] class extends Component
 {
     /** Filter tiket: semua, atau tahap item tertentu. */
+    #[Url]
     public string $stage = '';
 
     #[Computed]
