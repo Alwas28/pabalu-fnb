@@ -1,10 +1,17 @@
 <?php
 
+use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 // Halaman awal langsung ke dashboard (tamu otomatis diarahkan ke halaman login).
 Route::redirect('/', '/dashboard');
+
+// Struk digital publik (dibuka dari QR code di struk cetak).
+Route::get('r/{token}', [ReceiptController::class, 'show'])
+    ->middleware('throttle:60,1')
+    ->where('token', '[A-Za-z0-9]{32}')
+    ->name('receipts.show');
 
 Route::middleware('auth')->group(function () {
     Route::view('profile', 'profile')->name('profile');
@@ -14,6 +21,22 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['verified', 'business'])->group(function () {
         Route::view('dashboard', 'dashboard')->name('dashboard');
+
+        // Kasir (POS) & pesanan
+        Volt::route('pos', 'pages.pos.index')->middleware('can:pos.use')->name('pos');
+        Route::middleware('can:orders.view')->group(function () {
+            Volt::route('orders', 'pages.orders.index')->name('orders.index');
+            Volt::route('orders/{order}', 'pages.orders.show')->name('orders.show');
+        });
+
+        // Menu — daftar menu, kategori, modifier
+        Route::middleware('can:menu.manage')->prefix('menu')->name('menu.')->group(function () {
+            Volt::route('/', 'pages.menu.items.index')->name('items.index');
+            Volt::route('items/create', 'pages.menu.items.form')->name('items.create');
+            Volt::route('items/{menuItem}', 'pages.menu.items.form')->name('items.edit');
+            Volt::route('categories', 'pages.menu.categories')->name('categories');
+            Volt::route('modifiers', 'pages.menu.modifiers')->name('modifiers');
+        });
 
         // Karyawan — anggota tim, role & penugasan outlet
         Volt::route('employees', 'pages.employees.index')

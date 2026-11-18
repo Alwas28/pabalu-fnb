@@ -12,12 +12,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'code', 'name', 'phone', 'address', 'opens_at', 'closes_at', 'is_active',
     'service_types', 'tables_enabled', 'kitchen_mode',
     'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax',
-    'payment_methods',
+    'payment_methods', 'receipt_paper_width', 'receipt_footer',
 ])]
 class Outlet extends Model
 {
@@ -40,7 +41,11 @@ class Outlet extends Model
         'service_charge_rate' => 0,
         'prices_include_tax' => false,
         'payment_methods' => '["cash","qris"]',
+        'receipt_paper_width' => 58,
     ];
+
+    /** Lebar kertas struk thermal yang didukung (mm). */
+    public const RECEIPT_PAPER_WIDTHS = [58, 80];
 
     protected function casts(): array
     {
@@ -55,7 +60,13 @@ class Outlet extends Model
             'service_charge_rate' => 'decimal:2',
             'prices_include_tax' => 'boolean',
             'payment_methods' => AsEnumCollection::of(PaymentMethod::class),
+            'receipt_paper_width' => 'integer',
         ];
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     public function business(): BelongsTo

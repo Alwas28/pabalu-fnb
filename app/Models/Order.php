@@ -1,0 +1,85 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\DiscountType;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\ServiceType;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * Transaksi penjualan. Dibuat hanya melalui App\Actions\Pos\PlaceOrder agar
+ * harga, pajak, pembayaran dan nomor order selalu dihitung di server.
+ */
+class Order extends Model
+{
+    protected $guarded = ['id'];
+
+    protected function casts(): array
+    {
+        return [
+            'service_type' => ServiceType::class,
+            'status' => OrderStatus::class,
+            'payment_status' => PaymentStatus::class,
+            'discount_type' => DiscountType::class,
+            'discount_value' => 'decimal:2',
+            'subtotal' => 'integer',
+            'discount_amount' => 'integer',
+            'service_charge_rate' => 'decimal:2',
+            'service_charge_amount' => 'integer',
+            'tax_rate' => 'decimal:2',
+            'prices_include_tax' => 'boolean',
+            'tax_amount' => 'integer',
+            'total' => 'integer',
+            'paid_amount' => 'integer',
+            'change_amount' => 'integer',
+            'placed_at' => 'datetime',
+            'completed_at' => 'datetime',
+        ];
+    }
+
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
+    }
+
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cashier_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class)->orderBy('id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class)->orderBy('id');
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderBy('id');
+    }
+
+    /** Tautan struk web publik (dipakai di QR code struk). */
+    public function receiptUrl(): string
+    {
+        return route('receipts.show', $this->receipt_token);
+    }
+
+    /** Muat relasi yang dibutuhkan struk / detail order. */
+    public function loadReceipt(): static
+    {
+        return $this->loadMissing(['business', 'outlet', 'cashier', 'items.modifiers', 'payments']);
+    }
+}

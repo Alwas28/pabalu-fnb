@@ -26,15 +26,16 @@ class Navigation
                 ['label' => 'Dashboard', 'icon' => 'fa-chart-pie', 'route' => 'dashboard', 'permission' => null],
             ],
             'Penjualan' => [
-                ['label' => 'Kasir (POS)', 'icon' => 'fa-cash-register', 'route' => null, 'permission' => Permission::UsePos],
-                ['label' => 'Pesanan', 'icon' => 'fa-receipt', 'route' => null, 'permission' => Permission::ViewOrders],
+                ['label' => 'Kasir (POS)', 'icon' => 'fa-cash-register', 'route' => 'pos', 'permission' => Permission::UsePos],
+                ['label' => 'Pesanan', 'icon' => 'fa-receipt', 'route' => 'orders.index', 'active' => 'orders.*', 'permission' => Permission::ViewOrders],
                 ['label' => 'Antrean Dapur', 'icon' => 'fa-fire-burner', 'route' => null, 'permission' => Permission::ViewKitchen],
                 ['label' => 'Meja & Area', 'icon' => 'fa-chair', 'route' => null, 'permission' => Permission::ManageTables],
                 ['label' => 'Shift Kasir', 'icon' => 'fa-clock', 'route' => null, 'permission' => Permission::ManageShifts],
             ],
             'Menu' => [
-                ['label' => 'Daftar Menu', 'icon' => 'fa-utensils', 'route' => null, 'permission' => Permission::ManageMenu],
-                ['label' => 'Kategori', 'icon' => 'fa-tags', 'route' => null, 'permission' => Permission::ManageMenu],
+                ['label' => 'Daftar Menu', 'icon' => 'fa-utensils', 'route' => 'menu.items.index', 'active' => 'menu.items.*', 'permission' => Permission::ManageMenu],
+                ['label' => 'Kategori', 'icon' => 'fa-tags', 'route' => 'menu.categories', 'permission' => Permission::ManageMenu],
+                ['label' => 'Modifier & Topping', 'icon' => 'fa-layer-group', 'route' => 'menu.modifiers', 'permission' => Permission::ManageMenu],
                 ['label' => 'Resep & Bahan', 'icon' => 'fa-book-open', 'route' => null, 'permission' => Permission::ManageRecipes],
             ],
             'Persediaan' => [

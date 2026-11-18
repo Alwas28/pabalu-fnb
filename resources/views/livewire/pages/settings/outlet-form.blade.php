@@ -38,6 +38,10 @@ new #[Layout('layouts.app')] class extends Component
     /** @var list<string> */
     public array $paymentMethods = ['cash', 'qris'];
 
+    // Struk
+    public string $receiptPaperWidth = '58';
+    public string $receiptFooter = '';
+
     public function mount(?Outlet $outlet = null): void
     {
         if ($outlet?->exists) {
@@ -61,6 +65,8 @@ new #[Layout('layouts.app')] class extends Component
                 'serviceChargeRate' => (string) (float) $outlet->service_charge_rate,
                 'pricesIncludeTax' => $outlet->prices_include_tax,
                 'paymentMethods' => $outlet->payment_methods->map->value->all(),
+                'receiptPaperWidth' => (string) $outlet->receipt_paper_width,
+                'receiptFooter' => (string) $outlet->receipt_footer,
             ]);
         } else {
             $this->authorize('create', Outlet::class);
@@ -111,6 +117,8 @@ new #[Layout('layouts.app')] class extends Component
             'pricesIncludeTax' => ['boolean'],
             'paymentMethods' => ['required', 'array', 'min:1'],
             'paymentMethods.*' => [Rule::enum(PaymentMethod::class)],
+            'receiptPaperWidth' => ['required', Rule::in(array_map('strval', Outlet::RECEIPT_PAPER_WIDTHS))],
+            'receiptFooter' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -147,6 +155,8 @@ new #[Layout('layouts.app')] class extends Component
             'service_charge_rate' => $this->serviceChargeEnabled ? $this->serviceChargeRate : 0,
             'prices_include_tax' => $this->taxEnabled && $this->pricesIncludeTax,
             'payment_methods' => array_values(array_filter(PaymentMethod::cases(), fn ($m) => in_array($m->value, $this->paymentMethods, true))),
+            'receipt_paper_width' => (int) $this->receiptPaperWidth,
+            'receipt_footer' => $this->receiptFooter ?: null,
         ];
 
         if ($this->outlet) {
@@ -336,6 +346,36 @@ new #[Layout('layouts.app')] class extends Component
                     <a href="{{ route('settings.business') }}" wire:navigate class="link">pengaturan bisnis</a>.
                 </p>
             @endcan
+        </div>
+    </div>
+
+    {{-- ── Struk ── --}}
+    <div class="card animate-fadeUp d4">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-print"></i>Struk</div>
+                <div class="section-desc">Struk dicetak ke printer thermal (ESC/POS) dan memuat QR code menuju struk digital.</div>
+            </div>
+        </div>
+        <div class="card-body grid gap-4 sm:grid-cols-[260px_1fr]">
+            <div>
+                <x-input-label value="Lebar kertas" />
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (Outlet::RECEIPT_PAPER_WIDTHS as $width)
+                        <label class="choice-card !p-3 !items-center">
+                            <input type="radio" wire:model="receiptPaperWidth" value="{{ $width }}" name="receiptPaperWidth">
+                            <span class="text-[13px] font-semibold text-pb-text">{{ $width }} mm</span>
+                        </label>
+                    @endforeach
+                </div>
+                <x-input-error :messages="$errors->get('receiptPaperWidth')" class="mt-1.5" />
+            </div>
+            <div>
+                <x-input-label for="receiptFooter" value="Teks penutup struk" />
+                <x-text-input wire:model="receiptFooter" id="receiptFooter" maxlength="255" placeholder="Terima kasih atas kunjungan Anda" />
+                <x-input-error :messages="$errors->get('receiptFooter')" class="mt-1.5" />
+                <p class="f-hint">mis. info Wi-Fi, akun Instagram, atau kebijakan penukaran.</p>
+            </div>
         </div>
     </div>
 

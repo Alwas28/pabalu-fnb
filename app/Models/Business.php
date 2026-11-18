@@ -42,6 +42,26 @@ class Business extends Model
         return $this->hasMany(Outlet::class)->orderBy('name');
     }
 
+    public function menuCategories(): HasMany
+    {
+        return $this->hasMany(MenuCategory::class)->orderBy('sort_order')->orderBy('name');
+    }
+
+    public function menuItems(): HasMany
+    {
+        return $this->hasMany(MenuItem::class);
+    }
+
+    public function modifierGroups(): HasMany
+    {
+        return $this->hasMany(ModifierGroup::class)->orderBy('sort_order')->orderBy('name');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function memberships(): HasMany
     {
         return $this->hasMany(BusinessUser::class);
