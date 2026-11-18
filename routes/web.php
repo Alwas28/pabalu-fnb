@@ -60,6 +60,15 @@ Route::middleware('auth')->group(function () {
             Volt::route('counts', 'pages.inventory.counts')->name('counts.index');
         });
 
+        // Pembelian & supplier
+        Route::middleware('can:purchasing.manage')->prefix('purchasing')->name('purchasing.')->group(function () {
+            Volt::route('/', 'pages.purchasing.index')->name('index');
+            Volt::route('suppliers', 'pages.purchasing.suppliers')->name('suppliers');
+            Volt::route('orders/create', 'pages.purchasing.form')->name('create');
+            Volt::route('orders/{purchaseOrder}/edit', 'pages.purchasing.form')->name('edit');
+            Volt::route('orders/{purchaseOrder}', 'pages.purchasing.show')->name('show');
+        });
+
         // Karyawan — anggota tim, role & penugasan outlet
         Volt::route('employees', 'pages.employees.index')
             ->middleware('can:employees.manage')

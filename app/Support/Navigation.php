@@ -41,7 +41,7 @@ class Navigation
             ],
             'Persediaan' => [
                 ['label' => 'Stok Bahan', 'icon' => 'fa-warehouse', 'route' => 'inventory.index', 'active' => 'inventory.*', 'permission' => Permission::ManageInventory],
-                ['label' => 'Pembelian', 'icon' => 'fa-truck', 'route' => null, 'permission' => Permission::ManagePurchasing],
+                ['label' => 'Pembelian', 'icon' => 'fa-truck', 'route' => 'purchasing.index', 'active' => 'purchasing.*', 'permission' => Permission::ManagePurchasing],
             ],
             'Bisnis' => [
                 ['label' => 'Pelanggan', 'icon' => 'fa-users', 'route' => null, 'permission' => Permission::ManageCustomers],
