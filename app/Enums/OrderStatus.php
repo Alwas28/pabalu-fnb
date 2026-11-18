@@ -26,6 +26,21 @@ enum OrderStatus: string
         };
     }
 
+    /**
+     * Status open bill: pesanan sudah diterima tetapi belum selesai/lunas.
+     *
+     * @return list<self>
+     */
+    public static function openStatuses(): array
+    {
+        return [self::Confirmed, self::Preparing, self::Ready];
+    }
+
+    public function isOpen(): bool
+    {
+        return in_array($this, self::openStatuses(), true);
+    }
+
     /** Kelas badge di UI. */
     public function badge(): string
     {

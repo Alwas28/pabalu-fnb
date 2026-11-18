@@ -6,13 +6,15 @@ use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Transaksi penjualan. Dibuat hanya melalui App\Actions\Pos\PlaceOrder agar
- * harga, pajak, pembayaran dan nomor order selalu dihitung di server.
+ * Transaksi penjualan. Dibuat & diubah hanya melalui kelas di App\Support\Pos
+ * (PlaceOrder, AddOrderItems, SettleOrder, CancelOrder, MoveOrderTable) agar harga,
+ * pajak, pembayaran, shift dan nomor order selalu dihitung di server.
  */
 class Order extends Model
 {
@@ -38,6 +40,7 @@ class Order extends Model
             'change_amount' => 'integer',
             'placed_at' => 'datetime',
             'completed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -54,6 +57,32 @@ class Order extends Model
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(CashShift::class, 'cash_shift_id');
+    }
+
+    public function diningTable(): BelongsTo
+    {
+        return $this->belongsTo(DiningTable::class);
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    /** Open bill: pesanan diterima, belum lunas dan belum dibatalkan. */
+    public function isOpen(): bool
+    {
+        return $this->status->isOpen() && $this->payment_status !== PaymentStatus::Paid;
+    }
+
+    public function scopeOpen(Builder $query): void
+    {
+        $query->whereIn('status', OrderStatus::openStatuses());
     }
 
     public function items(): HasMany

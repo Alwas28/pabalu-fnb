@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\OrderResource;
 use App\Models\Order;
 use App\Models\Outlet;
+use App\Support\Pos\AddOrderItems;
+use App\Support\Pos\CancelOrder;
+use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
+use App\Support\Pos\SettleOrder;
 use App\Support\Receipt\EscPosReceipt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +20,7 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
-    /** Riwayat transaksi outlet (default: hari ini, zona waktu bisnis). */
+    /** Riwayat transaksi outlet (default: hari ini, zona waktu bisnis), atau open bill dengan status=open. */
     public function index(Request $request, Outlet $outlet): AnonymousResourceCollection
     {
         Gate::authorize('usePos', $outlet);
@@ -24,14 +28,18 @@ class OrderController extends Controller
         $request->validate([
             'date' => ['nullable', 'date_format:Y-m-d'],
             'search' => ['nullable', 'string', 'max:64'],
+            'status' => ['nullable', Rule::in(['open'])],
         ]);
 
         $timezone = $outlet->business->timezone ?: config('app.timezone');
         $day = $request->date('date', 'Y-m-d', $timezone) ?? now($timezone);
 
+        // status=open: semua open bill outlet (tanpa batas tanggal); selain itu riwayat per hari.
         $orders = $outlet->orders()
             ->with(['cashier', 'payments'])
-            ->whereBetween('placed_at', [$day->copy()->startOfDay()->utc(), $day->copy()->endOfDay()->utc()])
+            ->when($request->input('status') === 'open',
+                fn ($q) => $q->open(),
+                fn ($q) => $q->whereBetween('placed_at', [$day->copy()->startOfDay()->utc(), $day->copy()->endOfDay()->utc()]))
             ->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q
                 ->where('number', 'like', '%'.$request->string('search').'%')
                 ->orWhere('customer_name', 'like', '%'.$request->string('search').'%')))
@@ -43,7 +51,8 @@ class OrderController extends Controller
     }
 
     /**
-     * Buat order + pembayaran (split payment didukung).
+     * Buat order + pembayaran (split payment didukung), atau open bill dine-in dengan pay_later=true.
+     * Membutuhkan shift kasir yang sedang berjalan di outlet.
      * Kirim client_reference (UUID dari perangkat) agar kiriman ulang tidak membuat order ganda:
      * order yang sudah ada dikembalikan dengan status 200.
      */
@@ -58,6 +67,42 @@ class OrderController extends Controller
         return (new OrderResource($order->loadReceipt()))
             ->response()
             ->setStatusCode($order->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /** Tambah item ke open bill. */
+    public function addItems(Request $request, Order $order, AddOrderItems $addItems): OrderResource
+    {
+        Gate::authorize('operate', $order);
+
+        return new OrderResource($addItems->handle($request->user(), $order, $request->only('items'))->fresh()->loadReceipt());
+    }
+
+    /** Pelunasan open bill (diskon opsional, split payment). */
+    public function settle(Request $request, Order $order, SettleOrder $settle): OrderResource
+    {
+        Gate::authorize('operate', $order);
+
+        $order = $settle->handle($request->user(), $order, $request->only('payments', 'discount_type', 'discount_value', 'discount_reason'));
+
+        return new OrderResource($order->fresh()->loadReceipt());
+    }
+
+    /** Pindah meja open bill. */
+    public function moveTable(Request $request, Order $order, MoveOrderTable $move): OrderResource
+    {
+        Gate::authorize('operate', $order);
+
+        $request->validate(['dining_table_id' => ['required', 'integer']]);
+
+        return new OrderResource($move->handle($request->user(), $order, $request->integer('dining_table_id'))->fresh()->loadReceipt());
+    }
+
+    /** Batalkan open bill (Supervisor ke atas, wajib alasan). */
+    public function cancel(Request $request, Order $order, CancelOrder $cancel): OrderResource
+    {
+        Gate::authorize('cancel', $order);
+
+        return new OrderResource($cancel->handle($request->user(), $order, $request->only('reason'))->fresh()->loadReceipt());
     }
 
     public function show(Order $order): OrderResource

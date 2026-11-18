@@ -27,8 +27,13 @@ new #[Layout('layouts.app')] class extends Component
 @endphp
 
 <x-slot name="actions">
+    @if ($order->isOpen())
+        @can('operate', $order)
+            <a href="{{ route('pos', ['order' => $order->id]) }}" wire:navigate class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-cash-register"></i><span class="hidden sm:inline">Buka di Kasir</span></a>
+        @endcan
+    @endif
     <a href="{{ route('receipts.show', ['token' => $order->receipt_token, 'print' => 1]) }}" target="_blank" class="btn btn-secondary !px-3 sm:!px-[18px]">
-        <i class="fa-solid fa-print"></i><span class="hidden sm:inline">Cetak Struk</span>
+        <i class="fa-solid fa-print"></i><span class="hidden sm:inline">{{ $order->isOpen() ? 'Cetak Tagihan' : 'Cetak Struk' }}</span>
     </a>
 </x-slot>
 
@@ -126,6 +131,10 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="flex justify-between gap-3"><span class="text-pb-muted">Layanan</span><span class="text-pb-text text-right">{{ $order->service_type->label() }}{{ $order->table_number ? ' · Meja '.$order->table_number : '' }}</span></div>
                     @if ($order->customer_name)
                         <div class="flex justify-between gap-3"><span class="text-pb-muted">Pelanggan</span><span class="text-pb-text text-right">{{ $order->customer_name }}</span></div>
+                    @endif
+                    @if ($order->cancelled_at)
+                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Dibatalkan</span><span class="text-pb-text text-right">{{ $order->cancelled_at->timezone($tz)->format('d/m/Y H:i') }} · {{ $order->canceller?->name }}</span></div>
+                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Alasan</span><span class="trend-down text-right">{{ $order->cancel_reason }}</span></div>
                     @endif
                     @if ($order->notes)
                         <div class="flex justify-between gap-3"><span class="text-pb-muted">Catatan</span><span class="text-pb-text text-right">{{ $order->notes }}</span></div>

@@ -32,6 +32,11 @@ class OrderPayment extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(CashShift::class, 'cash_shift_id');
+    }
+
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');

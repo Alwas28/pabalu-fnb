@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OutletController;
+use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\TableController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Autentikasi: Bearer token (Laravel Sanctum) dengan ability "pos".
 | Semua endpoint dibatasi pada bisnis aktif & outlet yang ditugaskan.
-| Nominal uang dalam rupiah (integer). Endpoint shift ditambahkan bersama modulnya.
+| Nominal uang dalam rupiah (integer). Transaksi membutuhkan shift kasir yang sedang berjalan.
 */
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -32,5 +34,22 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('outlets/{outlet}/orders', [OrderController::class, 'store'])->name('outlets.orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::get('orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
+
+        // Open bill (dine-in bayar nanti)
+        Route::post('orders/{order}/items', [OrderController::class, 'addItems'])->name('orders.items.store');
+        Route::post('orders/{order}/settle', [OrderController::class, 'settle'])->name('orders.settle');
+        Route::post('orders/{order}/move-table', [OrderController::class, 'moveTable'])->name('orders.move-table');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+
+        // Shift kasir
+        Route::get('outlets/{outlet}/shift', [ShiftController::class, 'current'])->name('outlets.shift.current');
+        Route::post('outlets/{outlet}/shifts', [ShiftController::class, 'open'])->name('outlets.shifts.store');
+        Route::get('shifts/{shift}', [ShiftController::class, 'show'])->name('shifts.show');
+        Route::post('shifts/{shift}/cash-movements', [ShiftController::class, 'movement'])->name('shifts.movements.store');
+        Route::post('shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+
+        // Meja
+        Route::get('outlets/{outlet}/tables', [TableController::class, 'index'])->name('outlets.tables.index');
+        Route::post('tables/{table}/clear', [TableController::class, 'clear'])->name('tables.clear');
     });
 });

@@ -140,6 +140,33 @@ class CartResolver
     }
 
     /**
+     * Aturan format isi keranjang (aturan bisnis diperiksa di resolve()).
+     *
+     * @return array<string, mixed>
+     */
+    public static function rules(): array
+    {
+        return [
+            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'items.*.menu_item_id' => ['required', 'integer'],
+            'items.*.variant_id' => ['nullable', 'integer'],
+            'items.*.modifier_ids' => ['nullable', 'array', 'max:30'],
+            'items.*.modifier_ids.*' => ['integer'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.notes' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function messages(): array
+    {
+        return [
+            'items.required' => 'Keranjang masih kosong.',
+            'items.min' => 'Keranjang masih kosong.',
+        ];
+    }
+
+    /**
      * @param  list<CartLine>  $lines
      */
     public static function subtotal(array $lines): int

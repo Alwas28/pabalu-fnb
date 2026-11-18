@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PaymentStatus;
+use App\Models\CashShift;
 use App\Models\MenuItem;
 use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Support\Pos\PlaceOrder;
+use App\Support\Pos\ShiftManager;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -24,6 +27,62 @@ class PosScreenTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+
+        $shifts = app(ShiftManager::class);
+        $shifts->open($this->user('pabalu.kasir@gmail.com'), Outlet::where('code', 'KDI')->sole(), ['opening_cash' => 0]);
+        $shifts->open($this->user('pabalu.supervisor@gmail.com'), Outlet::where('code', 'BAU')->sole(), ['opening_cash' => 0]);
+        $shifts->open($this->user('pabalu.owner@gmail.com'), Outlet::where('code', 'KLK')->sole(), ['opening_cash' => 0]);
+    }
+
+    public function test_pos_asks_to_open_shift_first(): void
+    {
+        $manager = $this->user('pabalu.manager@gmail.com');
+        $this->actingAs($manager);
+
+        Volt::test('pages.pos.index')
+            ->assertSee('Buka Shift')
+            ->assertDontSee('Air Mineral')
+            ->set('openingCash', '150000')
+            ->call('openShift')
+            ->assertHasNoErrors()
+            ->assertSee('Air Mineral');
+
+        $this->assertSame(150000, CashShift::currentFor($manager, Outlet::where('code', 'KDI')->sole())->opening_cash);
+    }
+
+    public function test_dine_in_order_can_be_saved_and_settled_later_from_screen(): void
+    {
+        $this->actingAs($this->user('pabalu.kasir@gmail.com'));
+        $table = Outlet::where('code', 'KDI')->sole()->diningTables()->where('name', 'A1')->sole();
+
+        $page = Volt::test('pages.pos.index')
+            ->set('serviceType', 'dine_in')
+            ->call('pick', $this->menuId('NKP-003'))
+            ->call('saveOpenOrder')
+            ->assertHasErrors('dining_table_id')
+            ->call('openTablePicker')
+            ->call('selectTable', $table->id)
+            ->call('saveOpenOrder')
+            ->assertHasNoErrors()
+            ->assertSet('cart', []);
+
+        $order = Order::sole();
+        $this->assertTrue($order->isOpen());
+        $this->assertTrue($table->fresh()->isOccupied());
+
+        // Pelanggan memesan lagi, lalu membayar.
+        $page->call('loadOrder', $order->id)
+            ->assertSee($order->number)
+            ->call('pick', $this->menuId('NKP-003'))
+            ->call('openPayment')
+            ->assertSet('payments.0.amount', '13860')
+            ->call('checkout')
+            ->assertHasNoErrors();
+
+        $order->refresh();
+        $this->assertSame(2, $order->items()->sum('quantity'));
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+        $this->assertFalse($table->fresh()->isOccupied());
     }
 
     private function user(string $email): User

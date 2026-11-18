@@ -37,6 +37,17 @@ class BusinessSeeder extends Seeder
             $code => Outlet::updateOrCreate(['business_id' => $business->id, 'code' => $code], $data),
         ]);
 
+        // Meja Outlet Kendari: area Indoor & Teras.
+        $tables = [['Indoor', 'A', 6, 4], ['Teras', 'B', 4, 2]];
+        foreach ($tables as [$area, $prefix, $count, $capacity]) {
+            for ($i = 1; $i <= $count; $i++) {
+                $outlets['KDI']->diningTables()->updateOrCreate(
+                    ['name' => $prefix.$i],
+                    ['area' => $area, 'capacity' => $capacity, 'sort_order' => $i],
+                );
+            }
+        }
+
         foreach ($accounts as $account) {
             $user = User::where('email', $account['email'])->firstOrFail();
 
@@ -74,6 +85,8 @@ class BusinessSeeder extends Seeder
                 'closes_at' => '22:00',
                 'service_types' => [ServiceType::DineIn, ServiceType::Takeaway, ServiceType::Delivery],
                 'tables_enabled' => true,
+                'dine_in_pay_later' => true,
+                'table_status_enabled' => true,
                 'kitchen_mode' => KitchenMode::Display,
                 'tax_enabled' => true,
                 'tax_rate' => 10,

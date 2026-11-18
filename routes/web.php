@@ -29,6 +29,13 @@ Route::middleware('auth')->group(function () {
             Volt::route('orders/{order}', 'pages.orders.show')->name('orders.show');
         });
 
+        // Shift kasir & meja
+        Route::middleware('can:shifts.manage')->group(function () {
+            Volt::route('shifts', 'pages.shifts.index')->name('shifts.index');
+            Volt::route('shifts/{shift}', 'pages.shifts.show')->name('shifts.show');
+        });
+        Volt::route('tables', 'pages.tables.index')->middleware('can:tables.manage')->name('tables.index');
+
         // Menu — daftar menu, kategori, modifier
         Route::middleware('can:menu.manage')->prefix('menu')->name('menu.')->group(function () {
             Volt::route('/', 'pages.menu.items.index')->name('items.index');

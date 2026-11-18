@@ -4,14 +4,21 @@ use App\Enums\DiscountType;
 use App\Enums\PaymentMethod;
 use App\Enums\Permission;
 use App\Enums\ServiceType;
+use App\Models\CashShift;
+use App\Models\DiningTable;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Outlet;
 use App\Support\Money;
+use App\Support\Pos\AddOrderItems;
+use App\Support\Pos\CancelOrder;
 use App\Support\Pos\CartLine;
 use App\Support\Pos\CartResolver;
 use App\Support\Pos\OrderTotals;
+use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
+use App\Support\Pos\SettleOrder;
+use App\Support\Pos\ShiftManager;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -36,7 +43,8 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
     // Detail order
     public string $serviceType = '';
-    public string $tableNumber = '';
+    /** id meja terpilih (outlet yang memakai meja). */
+    public string $tableId = '';
     public string $customerName = '';
     public string $orderNotes = '';
 
@@ -62,6 +70,15 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
     public ?int $lastOrderId = null;
 
+    /** Open bill yang sedang dibuka di kasir (tambah item / pelunasan). */
+    public ?int $activeOrderId = null;
+
+    /** Pemilih meja: 'select' untuk pesanan baru, 'move' untuk memindahkan open bill. */
+    public string $tablePickerMode = 'select';
+
+    // Buka shift dari layar kasir
+    public string $openingCash = '';
+
     public function mount(): void
     {
         $outlet = auth()->user()->currentOutlet();
@@ -69,6 +86,12 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         if ($outlet && auth()->user()->can('usePos', $outlet)) {
             $this->outletId = $outlet->id;
             $this->serviceType = $outlet->service_types->first()?->value ?? '';
+
+            // Dibuka dari detail pesanan: langsung muat open bill tersebut.
+            $orderId = request()->integer('order');
+            if ($orderId && Order::where('outlet_id', $outlet->id)->open()->whereKey($orderId)->exists()) {
+                $this->loadOrder($orderId);
+            }
         }
 
         $this->checkoutToken = (string) Str::uuid();
@@ -146,7 +169,8 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     #[Computed]
     public function totals(): OrderTotals
     {
-        $subtotal = collect($this->lines)->sum(fn ($line) => $line instanceof CartLine ? $line->lineTotal() : 0);
+        $subtotal = collect($this->lines)->sum(fn ($line) => $line instanceof CartLine ? $line->lineTotal() : 0)
+            + (int) $this->activeOrder?->items->sum('line_total');
         $type = $this->canDiscount() ? DiscountType::tryFrom($this->discountType) : null;
 
         return OrderTotals::calculate($this->outlet, $subtotal, $type, (float) ($this->discountValue ?: 0));
@@ -164,6 +188,58 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         return $this->lastOrderId ? Order::with('payments')->find($this->lastOrderId) : null;
     }
 
+    #[Computed]
+    public function shift(): ?CashShift
+    {
+        return $this->outlet ? CashShift::currentFor(auth()->user(), $this->outlet) : null;
+    }
+
+    #[Computed]
+    public function tables()
+    {
+        if (! $this->outlet?->usesTables()) {
+            return collect();
+        }
+
+        return $this->outlet->diningTables()
+            ->where('is_active', true)
+            ->with(['openOrders' => fn ($q) => $q->select('id', 'dining_table_id', 'number', 'total')])
+            ->get();
+    }
+
+    #[Computed]
+    public function selectedTable(): ?DiningTable
+    {
+        return $this->tableId !== '' ? $this->tables->firstWhere('id', (int) $this->tableId) : null;
+    }
+
+    /** Open bill di outlet ini (semua kasir), terbaru dulu. */
+    #[Computed]
+    public function openOrders()
+    {
+        return Order::where('outlet_id', $this->outletId)->open()->with('cashier')->withCount('items')->latest('placed_at')->get();
+    }
+
+    #[Computed]
+    public function activeOrder(): ?Order
+    {
+        if (! $this->activeOrderId) {
+            return null;
+        }
+
+        $order = Order::with('items.modifiers')->where('outlet_id', $this->outletId)->find($this->activeOrderId);
+
+        return $order?->isOpen() ? $order : null;
+    }
+
+    /** Pesanan baru dine-in boleh disimpan sebagai open bill. */
+    public function canPayLater(): bool
+    {
+        return ! $this->activeOrderId
+            && $this->outlet?->allowsPayLater()
+            && $this->serviceType === ServiceType::DineIn->value;
+    }
+
     public function canDiscount(): bool
     {
         return auth()->user()->hasPermission(Permission::ApproveTransactions);
@@ -172,6 +248,111 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     public function paidTotal(): int
     {
         return collect($this->payments)->sum(fn ($p) => Money::parse($p['amount']) ?? 0);
+    }
+
+    /* ─────────────── Shift ─────────────── */
+
+    public function openShift(): void
+    {
+        app(ShiftManager::class)->open(auth()->user(), $this->posOutlet(), [
+            'opening_cash' => Money::parse($this->openingCash) ?? '',
+        ]);
+
+        $this->reset('openingCash');
+        unset($this->shift);
+        $this->dispatch('toast', type: 'success', message: 'Shift dibuka. Selamat bekerja!');
+    }
+
+    /* ─────────────── Meja & open bill ─────────────── */
+
+    public function openTablePicker(string $mode = 'select'): void
+    {
+        $this->tablePickerMode = $mode === 'move' ? 'move' : 'select';
+        unset($this->tables);
+        $this->dispatch('open-modal', name: 'table-picker');
+    }
+
+    public function selectTable(int $tableId): void
+    {
+        $this->posOutlet();
+        $table = $this->tables->firstWhere('id', $tableId);
+        abort_unless($table, 404);
+
+        if ($this->tablePickerMode === 'move' && $this->activeOrder) {
+            app(MoveOrderTable::class)->handle(auth()->user(), $this->activeOrder, $table->id);
+            unset($this->activeOrder, $this->tables, $this->openOrders);
+            $this->dispatch('toast', type: 'success', message: 'Pesanan dipindah ke meja '.$table->name);
+        }
+
+        $this->tableId = (string) $table->id;
+        $this->dispatch('close-modal', name: 'table-picker');
+    }
+
+    /** Kosongkan meja manual (tamu sudah pergi). Meja dengan open bill tidak bisa dikosongkan. */
+    public function clearTable(int $tableId): void
+    {
+        $this->posOutlet();
+        $table = $this->tables->firstWhere('id', $tableId);
+        abort_unless($table, 404);
+
+        if ($table->openOrders->isEmpty()) {
+            $table->forceFill(['occupied_at' => null])->save();
+            unset($this->tables);
+        }
+    }
+
+    public function loadOrder(int $orderId): void
+    {
+        $this->posOutlet();
+        $order = Order::where('outlet_id', $this->outletId)->open()->find($orderId);
+        abort_unless($order, 404);
+
+        $this->clearCart();
+        $this->activeOrderId = $order->id;
+        $this->serviceType = $order->service_type->value;
+        $this->tableId = (string) $order->dining_table_id;
+        $this->customerName = (string) $order->customer_name;
+        unset($this->activeOrder);
+
+        $this->dispatch('close-modal', name: 'open-orders');
+        $this->dispatch('close-modal', name: 'table-picker');
+    }
+
+    public function leaveOrder(): void
+    {
+        $this->clearCart();
+    }
+
+    /** Simpan pesanan baru sebagai open bill, atau tambahkan isi keranjang ke open bill aktif. */
+    public function saveOpenOrder(): void
+    {
+        $outlet = $this->posOutlet();
+
+        if ($this->activeOrder) {
+            $order = app(AddOrderItems::class)->handle(auth()->user(), $this->activeOrder, ['items' => $this->cartPayload()]);
+            $message = 'Item ditambahkan ke '.$order->number;
+        } else {
+            $order = app(PlaceOrder::class)->handle(auth()->user(), $outlet, $this->orderPayload() + ['pay_later' => true]);
+            $message = 'Pesanan '.$order->number.' disimpan'.($order->table_number ? ' · Meja '.$order->table_number : '').' — bayar nanti';
+        }
+
+        $this->clearCart();
+        $this->checkoutToken = (string) Str::uuid();
+        unset($this->openOrders, $this->tables);
+        $this->dispatch('toast', type: 'success', message: $message);
+    }
+
+    public function cancelOrder(string $reason = ''): void
+    {
+        $this->posOutlet();
+        abort_unless($this->activeOrder, 404);
+        $this->authorize('cancel', $this->activeOrder);
+
+        $order = app(CancelOrder::class)->handle(auth()->user(), $this->activeOrder, ['reason' => $reason]);
+
+        $this->clearCart();
+        unset($this->openOrders, $this->tables);
+        $this->dispatch('toast', type: 'success', message: 'Pesanan '.$order->number.' dibatalkan');
     }
 
     /* ─────────────── Keranjang ─────────────── */
@@ -310,7 +491,8 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
     public function clearCart(): void
     {
-        $this->reset('cart', 'tableNumber', 'customerName', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments');
+        $this->reset('cart', 'tableId', 'customerName', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments', 'activeOrderId');
+        unset($this->activeOrder);
         $this->resetValidation();
     }
 
@@ -321,7 +503,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         $outlet = $this->posOutlet();
         $this->resetValidation();
 
-        if ($this->cart === []) {
+        if ($this->cart === [] && ! $this->activeOrder) {
             $this->dispatch('toast', type: 'error', message: 'Keranjang masih kosong.');
 
             return;
@@ -388,23 +570,10 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     public function checkout(): void
     {
         $outlet = $this->posOutlet();
-
-        $order = app(PlaceOrder::class)->handle(auth()->user(), $outlet, [
-            'client_reference' => 'web-'.$this->checkoutToken,
-            'service_type' => $this->serviceType,
-            'table_number' => $outlet->usesTables() && $this->serviceType === ServiceType::DineIn->value ? ($this->tableNumber ?: null) : null,
-            'customer_name' => $this->customerName ?: null,
-            'notes' => $this->orderNotes ?: null,
+        $payment = [
             'discount_type' => $this->canDiscount() && $this->discountType !== '' ? $this->discountType : null,
             'discount_value' => $this->canDiscount() ? ($this->discountValue ?: 0) : 0,
             'discount_reason' => $this->discountReason ?: null,
-            'items' => array_map(fn ($l) => [
-                'menu_item_id' => $l['menu_item_id'],
-                'variant_id' => $l['variant_id'],
-                'modifier_ids' => $l['modifier_ids'],
-                'quantity' => $l['quantity'],
-                'notes' => $l['notes'],
-            ], $this->cart),
             // Baris split yang bernilai 0 (tidak terpakai) diabaikan.
             'payments' => collect($this->payments)
                 ->map(fn ($p) => [
@@ -412,18 +581,57 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                     'amount' => Money::parse($p['amount']) ?? 0,
                     'reference' => $p['reference'] ?: null,
                 ])
-                ->filter(fn ($p, $i) => $p['amount'] > 0 || count($this->payments) === 1)
+                ->filter(fn ($p) => $p['amount'] > 0 || count($this->payments) === 1)
                 ->values()
                 ->all(),
-        ]);
+        ];
+
+        if ($order = $this->activeOrder) {
+            // Pelunasan open bill; item baru di keranjang ditambahkan lebih dulu.
+            if ($this->cart !== []) {
+                $order = app(AddOrderItems::class)->handle(auth()->user(), $order, ['items' => $this->cartPayload()]);
+            }
+
+            $order = app(SettleOrder::class)->handle(auth()->user(), $order, $payment);
+        } else {
+            $order = app(PlaceOrder::class)->handle(auth()->user(), $outlet, $this->orderPayload() + $payment);
+        }
 
         $this->lastOrderId = $order->id;
         $this->clearCart();
         $this->checkoutToken = (string) Str::uuid();
-        unset($this->lastOrder);
+        unset($this->lastOrder, $this->openOrders, $this->tables);
 
         $this->dispatch('close-modal', name: 'payment');
         $this->dispatch('open-modal', name: 'order-done');
+    }
+
+    /** @return array<string, mixed> */
+    private function orderPayload(): array
+    {
+        $outlet = $this->outlet;
+        $dineIn = $this->serviceType === ServiceType::DineIn->value;
+
+        return [
+            'client_reference' => 'web-'.$this->checkoutToken,
+            'service_type' => $this->serviceType,
+            'dining_table_id' => $outlet->usesTables() && $dineIn && $this->tableId !== '' ? (int) $this->tableId : null,
+            'customer_name' => $this->customerName ?: null,
+            'notes' => $this->orderNotes ?: null,
+            'items' => $this->cartPayload(),
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function cartPayload(): array
+    {
+        return array_map(fn ($l) => [
+            'menu_item_id' => $l['menu_item_id'],
+            'variant_id' => $l['variant_id'],
+            'modifier_ids' => $l['modifier_ids'],
+            'quantity' => $l['quantity'],
+            'notes' => $l['notes'],
+        ], $this->cart);
     }
 }; ?>
 
@@ -441,7 +649,42 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         $outlet = $this->outlet;
         $totals = $this->totals;
         $lines = $this->lines;
+        $shift = $this->shift;
+        $activeOrder = $this->activeOrder;
+        $selectedTable = $this->selectedTable;
     @endphp
+
+    @if (! $shift)
+    <form wire:submit="openShift" class="card max-w-lg animate-fadeUp">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-door-open"></i>Buka Shift · {{ $outlet->name }}</div>
+                <div class="section-desc">Shift wajib dibuka sebelum menerima transaksi. Hitung uang modal di laci kas.</div>
+            </div>
+        </div>
+        <div class="card-body flex flex-col gap-4">
+            <div>
+                <x-input-label for="openingCash" value="Modal awal kas (Rp)" />
+                <x-text-input wire:model="openingCash" id="openingCash" type="number" min="0" placeholder="mis. 200000" required autofocus />
+                <x-input-error :messages="array_merge($errors->get('opening_cash'), $errors->get('shift'))" class="mt-1.5" />
+            </div>
+            <x-primary-button class="self-start" wire:loading.attr="disabled" wire:target="openShift"><i class="fa-solid fa-door-open"></i>Buka Shift &amp; Mulai</x-primary-button>
+        </div>
+    </form>
+    @else
+
+    <div class="flex flex-wrap items-center gap-2 mb-4 text-[12.5px]">
+        <a href="{{ route('shifts.index') }}" wire:navigate class="chip"><span class="w-2 h-2 rounded-full bg-[#34d399] inline-block mr-1"></span>Shift sejak {{ $shift->opened_at->timezone($outlet->business->timezone)->format('H:i') }}</a>
+        @if ($outlet->allowsPayLater() || $this->openOrders->isNotEmpty())
+            <button type="button" x-data x-on:click="$dispatch('open-modal', 'open-orders')" class="chip cursor-pointer {{ $this->openOrders->isNotEmpty() ? 'a-bg-lt a-text a-border' : '' }}">
+                <i class="fa-solid fa-file-invoice"></i>Pesanan terbuka ({{ $this->openOrders->count() }})
+            </button>
+        @endif
+        @if ($outlet->usesTables())
+            <button type="button" wire:click="openTablePicker('select')" class="chip cursor-pointer"><i class="fa-solid fa-chair"></i>Denah meja</button>
+        @endif
+        <x-input-error :messages="$errors->get('shift')" />
+    </div>
 
     <div class="two-col !items-start">
         {{-- ═════ Katalog menu ═════ --}}
@@ -501,13 +744,35 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         {{-- ═════ Keranjang ═════ --}}
         <div id="pos-cart" class="card min-[1101px]:sticky min-[1101px]:top-[84px] flex flex-col min-[1101px]:max-h-[calc(100vh-110px)] scroll-mt-24">
             <div class="card-header">
-                <div class="card-title"><i class="fa-solid fa-basket-shopping"></i>Pesanan</div>
-                @if ($cart !== [])
-                    <button type="button" wire:click="clearCart" wire:confirm="Kosongkan pesanan?" class="btn-ghost text-[12px]" style="color:#f87171">Kosongkan</button>
+                @if ($activeOrder)
+                    <div class="min-w-0">
+                        <div class="card-title"><i class="fa-solid fa-file-invoice"></i>{{ $activeOrder->number }}</div>
+                        <div class="section-desc">Bayar nanti{{ $activeOrder->table_number ? ' · Meja '.$activeOrder->table_number : '' }}{{ $activeOrder->customer_name ? ' · '.$activeOrder->customer_name : '' }}</div>
+                    </div>
+                    <button type="button" wire:click="leaveOrder" class="btn-ghost text-[12px]"><i class="fa-solid fa-xmark mr-1"></i>Tutup</button>
+                @else
+                    <div class="card-title"><i class="fa-solid fa-basket-shopping"></i>Pesanan</div>
+                    @if ($cart !== [])
+                        <button type="button" wire:click="clearCart" wire:confirm="Kosongkan pesanan?" class="btn-ghost text-[12px]" style="color:#f87171">Kosongkan</button>
+                    @endif
                 @endif
             </div>
 
             <div class="px-5 pt-4 flex flex-col gap-3">
+                @if ($activeOrder)
+                    <div class="flex flex-wrap gap-1.5">
+                        @if ($outlet->usesTables())
+                            <button type="button" wire:click="openTablePicker('move')" class="btn-ghost text-[12px] font-semibold"><i class="fa-solid fa-right-left mr-1"></i>Pindah meja</button>
+                        @endif
+                        <a href="{{ route('orders.show', $activeOrder) }}" wire:navigate class="btn-ghost text-[12px] font-semibold"><i class="fa-solid fa-receipt mr-1"></i>Detail</a>
+                        @can('cancel', $activeOrder)
+                            <button type="button" x-data
+                                    x-on:click="const r = prompt('Alasan pembatalan {{ $activeOrder->number }}:'); if (r !== null) $wire.cancelOrder(r)"
+                                    class="btn-ghost text-[12px] font-semibold ml-auto" style="color:#f87171"><i class="fa-solid fa-ban mr-1"></i>Batalkan</button>
+                        @endcan
+                    </div>
+                    <x-input-error :messages="array_merge($errors->get('reason'), $errors->get('order'), $errors->get('dining_table_id'))" />
+                @else
                 <div class="grid gap-2" style="grid-template-columns: repeat({{ $outlet->service_types->count() }}, minmax(0, 1fr))">
                     @foreach ($outlet->service_types as $type)
                         <label class="choice-card !p-2.5 !gap-2 justify-center items-center text-[12.5px] font-semibold">
@@ -519,14 +784,32 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                 <x-input-error :messages="$errors->get('service_type')" />
                 <div class="grid grid-cols-2 gap-2">
                     @if ($outlet->usesTables() && $serviceType === 'dine_in')
-                        <input type="text" wire:model="tableNumber" class="f-input !py-2 !text-[12.5px]" placeholder="No. meja" aria-label="Nomor meja">
+                        <button type="button" wire:click="openTablePicker('select')" @class(['f-input !py-2 !text-[12.5px] text-left truncate', 'a-border a-text font-semibold' => $selectedTable])>
+                            <i class="fa-solid fa-chair mr-1"></i>{{ $selectedTable ? 'Meja '.$selectedTable->name : 'Pilih meja' }}
+                        </button>
                     @endif
                     <input type="text" wire:model="customerName" @class(['f-input !py-2 !text-[12.5px]', 'col-span-2' => ! ($outlet->usesTables() && $serviceType === 'dine_in')])
-                           placeholder="Nama pelanggan (opsional)" aria-label="Nama pelanggan">
+                           placeholder="Nama pelanggan{{ $this->canPayLater() && ! $outlet->usesTables() ? '' : ' (opsional)' }}" aria-label="Nama pelanggan">
                 </div>
+                <x-input-error :messages="array_merge($errors->get('dining_table_id'), $errors->get('customer_name'), $errors->get('pay_later'))" />
+                @endif
             </div>
 
             <div class="flex-1 overflow-y-auto px-5 py-3 flex flex-col divide-y divide-pb-border min-h-[120px]">
+                @if ($activeOrder)
+                    @foreach ($activeOrder->items as $item)
+                        <div class="py-2 flex gap-3 text-[12.5px]" wire:key="oi-{{ $item->id }}">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-pb-text font-semibold">{{ $item->quantity }}× {{ $item->displayName() }}</div>
+                                @if ($item->modifiers->isNotEmpty())
+                                    <div class="text-[11.5px] text-pb-muted">+ {{ $item->modifiers->pluck('name')->join(', ') }}</div>
+                                @endif
+                            </div>
+                            <div class="text-pb-sub shrink-0">{{ Money::format($item->line_total) }}</div>
+                        </div>
+                    @endforeach
+                    <div class="pt-2 pb-1 text-[11px] uppercase tracking-wider text-pb-muted">{{ $cart === [] ? 'Ketuk menu untuk menambah pesanan' : 'Tambahan' }}</div>
+                @endif
                 @forelse ($cart as $line)
                     @php $resolved = $lines[$line['key']] ?? null; @endphp
                     <div class="py-2.5 flex gap-3" wire:key="line-{{ $line['key'] }}">
@@ -554,15 +837,17 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                         </div>
                     </div>
                 @empty
-                    <div class="py-8 text-center text-[12.5px] text-pb-muted">
-                        <i class="fa-solid fa-hand-pointer text-xl mb-2 block"></i>Ketuk menu untuk menambahkan.
-                    </div>
+                    @unless ($activeOrder)
+                        <div class="py-8 text-center text-[12.5px] text-pb-muted">
+                            <i class="fa-solid fa-hand-pointer text-xl mb-2 block"></i>Ketuk menu untuk menambahkan.
+                        </div>
+                    @endunless
                 @endforelse
             </div>
             <x-input-error :messages="collect($errors->getMessages())->filter(fn ($v, $k) => str_starts_with($k, 'items'))->flatten()->all()" class="px-5" />
 
             <div class="px-5 py-4 border-t border-pb-border flex flex-col gap-2 text-[13px]">
-                @if ($this->canDiscount() && $cart !== [])
+                @if ($this->canDiscount() && ($cart !== [] || $activeOrder))
                     <div x-data="{ open: @js($discountType !== '') }">
                         <button type="button" x-show="! open" x-on:click="open = true" class="btn-ghost text-[12px] !px-0"><i class="fa-solid fa-tag mr-1"></i>Tambah diskon</button>
                         <div x-show="open" x-cloak class="grid grid-cols-[110px_1fr] gap-2 mb-1">
@@ -594,8 +879,13 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                 @endif
                 <div class="flex justify-between font-display text-lg font-bold text-pb-text mt-1"><span>Total</span><span>{{ Money::format($totals->total) }}</span></div>
 
-                <button type="button" wire:click="openPayment" class="btn btn-primary w-full !py-3 mt-1" @disabled($cart === [])>
-                    <i class="fa-solid fa-money-bill-wave"></i>Bayar {{ $cart !== [] ? Money::format($totals->total) : '' }}
+                @if ($this->canPayLater() || ($activeOrder && $cart !== []))
+                    <button type="button" wire:click="saveOpenOrder" wire:loading.attr="disabled" wire:target="saveOpenOrder" class="btn btn-secondary w-full !py-2.5 mt-1" @disabled($cart === [])>
+                        <i class="fa-solid fa-floppy-disk"></i>{{ $activeOrder ? 'Tambah ke Pesanan' : 'Simpan · Bayar Nanti' }}
+                    </button>
+                @endif
+                <button type="button" wire:click="openPayment" class="btn btn-primary w-full !py-3" @disabled($cart === [] && ! $activeOrder)>
+                    <i class="fa-solid fa-money-bill-wave"></i>Bayar {{ $cart !== [] || $activeOrder ? Money::format($totals->total) : '' }}
                 </button>
             </div>
         </div>
@@ -609,6 +899,84 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             <span>Lihat pesanan · {{ Money::format($totals->total) }}</span>
         </a>
     @endif
+
+    {{-- ═════ Pemilih meja ═════ --}}
+    <x-modal name="table-picker" maxWidth="2xl">
+        <div class="px-6 py-5 border-b border-pb-border flex items-center justify-between">
+            <div>
+                <div class="font-display text-base font-bold text-pb-text">{{ $tablePickerMode === 'move' ? 'Pindah ke Meja' : 'Pilih Meja' }}</div>
+                <div class="text-xs text-pb-muted mt-px">
+                    {{ $outlet->tracksTableStatus() ? 'Merah = terisi. Ketuk meja dengan pesanan terbuka untuk membuka pesanannya.' : 'Status meja tidak dilacak di outlet ini.' }}
+                </div>
+            </div>
+            <button type="button" x-on:click="$dispatch('close')" class="icon-btn !w-8 !h-8" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="px-6 py-5 flex flex-col gap-4 max-h-[65vh] overflow-y-auto">
+            @forelse ($this->tables->groupBy(fn ($t) => $t->area ?: 'Tanpa area') as $area => $tables)
+                <div wire:key="ta-{{ $area }}">
+                    <div class="f-label">{{ $area }}</div>
+                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        @foreach ($tables as $table)
+                            @php
+                                $tableOrder = $table->openOrders->first();
+                                $occupied = $outlet->tracksTableStatus() && $table->isOccupied();
+                            @endphp
+                            <div wire:key="tp-{{ $table->id }}" @class([
+                                'rounded-xl border p-2.5 flex flex-col gap-1 text-center',
+                                'border-[#f87171] bg-[rgba(248,113,113,.08)]' => $occupied,
+                                'a-border a-bg-lt' => (string) $table->id === $tableId && ! $occupied,
+                                'border-pb-border' => ! $occupied && (string) $table->id !== $tableId,
+                            ])>
+                                @if ($tableOrder && $tablePickerMode === 'select')
+                                    <button type="button" wire:click="loadOrder({{ $tableOrder->id }})" class="flex flex-col items-center">
+                                        <span class="font-display text-lg font-bold text-pb-text">{{ $table->name }}</span>
+                                        <span class="text-[10.5px] trend-down font-semibold">{{ Money::format($tableOrder->total) }}</span>
+                                    </button>
+                                @else
+                                    <button type="button" wire:click="selectTable({{ $table->id }})" class="flex flex-col items-center disabled:opacity-40"
+                                            @disabled($tablePickerMode === 'move' && $tableOrder)>
+                                        <span class="font-display text-lg font-bold text-pb-text">{{ $table->name }}</span>
+                                        <span class="text-[10.5px] text-pb-muted">{{ $occupied ? 'Terisi' : ($table->capacity ? $table->capacity.' kursi' : 'Kosong') }}</span>
+                                    </button>
+                                @endif
+                                @if ($occupied && ! $tableOrder)
+                                    <button type="button" wire:click="clearTable({{ $table->id }})" class="text-[10.5px] link">Kosongkan</button>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @empty
+                <p class="text-[13px] text-pb-muted">
+                    Belum ada meja terdaftar.
+                    @can('tables.manage')<a href="{{ route('tables.index') }}" wire:navigate class="link">Tambahkan meja</a>.@endcan
+                </p>
+            @endforelse
+            <x-input-error :messages="$errors->get('dining_table_id')" />
+        </div>
+    </x-modal>
+
+    {{-- ═════ Pesanan terbuka (bayar nanti) ═════ --}}
+    <x-modal name="open-orders" maxWidth="lg">
+        <div class="px-6 py-5 border-b border-pb-border flex items-center justify-between">
+            <div class="font-display text-base font-bold text-pb-text">Pesanan Terbuka</div>
+            <button type="button" x-on:click="$dispatch('close')" class="icon-btn !w-8 !h-8" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="py-2 max-h-[60vh] overflow-y-auto">
+            @forelse ($this->openOrders as $openOrder)
+                <button type="button" wire:key="oo-{{ $openOrder->id }}" wire:click="loadOrder({{ $openOrder->id }})" class="list-row w-full text-left">
+                    <div class="w-10 h-10 rounded-lg a-bg-lt a-text grid place-items-center font-display font-bold shrink-0">{{ $openOrder->table_number ?: '—' }}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[13px] font-semibold text-pb-text">{{ $openOrder->number }}{{ $openOrder->customer_name ? ' · '.$openOrder->customer_name : '' }}</div>
+                        <div class="text-[11.5px] text-pb-muted">{{ $openOrder->items_count }} item · {{ $openOrder->placed_at->timezone($outlet->business->timezone)->format('H:i') }} · {{ $openOrder->cashier?->name }}</div>
+                    </div>
+                    <div class="text-[13px] font-bold text-pb-text">{{ Money::format($openOrder->total) }}</div>
+                </button>
+            @empty
+                <div class="px-6 py-8 text-center text-[13px] text-pb-muted">Tidak ada pesanan yang belum dibayar.</div>
+            @endforelse
+        </div>
+    </x-modal>
 
     {{-- ═════ Pemilih varian / modifier ═════ --}}
     <x-modal name="item-picker" maxWidth="lg">
@@ -769,5 +1137,6 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             </div>
         @endif
     </x-modal>
+    @endif {{-- shift --}}
 @endif
 </div>

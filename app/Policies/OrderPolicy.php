@@ -17,4 +17,16 @@ class OrderPolicy
         return $user->hasPermission(Permission::ViewOrders)
             && $user->canAccessOutlet($order->outlet);
     }
+
+    /** Aksi kasir pada open bill: tambah item, pindah meja, pelunasan. */
+    public function operate(User $user, Order $order): bool
+    {
+        return $user->can('usePos', $order->outlet);
+    }
+
+    /** Membatalkan open bill: hak sensitif Supervisor ke atas. */
+    public function cancel(User $user, Order $order): bool
+    {
+        return $this->operate($user, $order) && $user->hasPermission(Permission::ApproveTransactions);
+    }
 }

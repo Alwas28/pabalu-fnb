@@ -54,6 +54,9 @@
             @if ($outlet->address)<div class="muted small">{{ $outlet->address }}</div>@endif
             @if ($outlet->phone)<div class="muted small">Telp. {{ $outlet->phone }}</div>@endif
         </div>
+        @if ($order->payment_status !== App\Enums\PaymentStatus::Paid)
+            <div class="center" style="margin-top:8px;font-weight:700">{{ $order->status === App\Enums\OrderStatus::Cancelled ? '*** DIBATALKAN ***' : '*** TAGIHAN — BELUM LUNAS ***' }}</div>
+        @endif
         <hr>
         <div class="row"><span>No</span><span>{{ $order->number }}</span></div>
         <div class="row"><span>Waktu</span><span>{{ $time->format('d/m/Y H:i') }}</span></div>
@@ -100,7 +103,7 @@
         @if ($order->change_amount > 0)
             <div class="row" style="font-weight:700"><span>Kembalian</span><span>{{ Money::plain($order->change_amount) }}</span></div>
         @endif
-        <div class="center" style="margin-top:8px"><span class="badge">{{ $order->payment_status->label() }}</span></div>
+        <div class="center" style="margin-top:8px"><span class="badge" @if ($order->payment_status !== App\Enums\PaymentStatus::Paid) style="background:#fef3c7;color:#92400e" @endif>{{ $order->status === App\Enums\OrderStatus::Cancelled ? 'Dibatalkan' : $order->payment_status->label() }}</span></div>
 
         <div class="qr">{!! $qr !!}</div>
         <div class="center small muted">Scan untuk struk digital</div>

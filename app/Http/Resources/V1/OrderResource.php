@@ -20,6 +20,8 @@ class OrderResource extends JsonResource
             'outlet_id' => $this->outlet_id,
             'service_type' => $this->service_type->value,
             'table_number' => $this->table_number,
+            'dining_table_id' => $this->dining_table_id,
+            'cash_shift_id' => $this->cash_shift_id,
             'customer_name' => $this->customer_name,
             'customer_phone' => $this->customer_phone,
             'delivery_address' => $this->delivery_address,
@@ -70,6 +72,8 @@ class OrderResource extends JsonResource
             'receipt_url' => $this->receiptUrl(),
             'placed_at' => $this->placed_at->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+            'cancel_reason' => $this->cancel_reason,
         ];
     }
 }

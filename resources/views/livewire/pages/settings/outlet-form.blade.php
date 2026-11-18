@@ -25,6 +25,8 @@ new #[Layout('layouts.app')] class extends Component
     /** @var list<string> */
     public array $serviceTypes = ['dine_in', 'takeaway'];
     public bool $tablesEnabled = false;
+    public bool $dineInPayLater = false;
+    public bool $tableStatusEnabled = false;
     public string $kitchenMode = 'ticket';
 
     // Pajak & service charge
@@ -58,6 +60,8 @@ new #[Layout('layouts.app')] class extends Component
                 'isActive' => $outlet->is_active,
                 'serviceTypes' => $outlet->service_types->map->value->all(),
                 'tablesEnabled' => $outlet->tables_enabled,
+                'dineInPayLater' => $outlet->dine_in_pay_later,
+                'tableStatusEnabled' => $outlet->table_status_enabled,
                 'kitchenMode' => $outlet->kitchen_mode->value,
                 'taxEnabled' => $outlet->tax_enabled,
                 'taxRate' => (string) (float) $outlet->tax_rate,
@@ -109,6 +113,8 @@ new #[Layout('layouts.app')] class extends Component
             'serviceTypes' => ['required', 'array', 'min:1'],
             'serviceTypes.*' => [Rule::enum(ServiceType::class)],
             'tablesEnabled' => ['boolean'],
+            'dineInPayLater' => ['boolean'],
+            'tableStatusEnabled' => ['boolean'],
             'kitchenMode' => ['required', Rule::enum(KitchenMode::class)],
             'taxEnabled' => ['boolean'],
             'taxRate' => [Rule::requiredIf($this->taxEnabled), 'nullable', 'numeric', 'min:0', 'max:100'],
@@ -148,6 +154,8 @@ new #[Layout('layouts.app')] class extends Component
             // Urutkan sesuai urutan enum agar konsisten.
             'service_types' => array_values(array_filter(ServiceType::cases(), fn ($t) => in_array($t->value, $this->serviceTypes, true))),
             'tables_enabled' => $this->tablesEnabled,
+            'dine_in_pay_later' => $this->dineInPayLater,
+            'table_status_enabled' => $this->tablesEnabled && $this->tableStatusEnabled,
             'kitchen_mode' => $this->kitchenMode,
             'tax_enabled' => $this->taxEnabled,
             'tax_rate' => $this->taxEnabled ? $this->taxRate : 0,
@@ -255,8 +263,20 @@ new #[Layout('layouts.app')] class extends Component
             <x-toggle wire:model.live="tablesEnabled" label="Gunakan manajemen meja" icon="fa-chair"
                       description="Opsional. Kasir memilih nomor meja untuk pesanan dine-in."
                       :disabled="! in_array('dine_in', $serviceTypes, true)" />
+            @if ($tablesEnabled && in_array('dine_in', $serviceTypes, true))
+                <div class="sm:pl-6 flex flex-col gap-2">
+                    <x-toggle wire:model="tableStatusEnabled" label="Lacak status meja (terisi / kosong)" icon="fa-circle-half-stroke"
+                              description="Opsional. Meja otomatis terisi saat ada pesanan dine-in dan kosong saat pesanan bayar nanti dilunasi; bisa juga dikosongkan manual." />
+                    @if ($outlet)
+                        <a href="{{ route('tables.index') }}" wire:navigate class="link text-[12.5px] self-start"><i class="fa-solid fa-chair mr-1"></i>Kelola daftar meja</a>
+                    @endif
+                </div>
+            @endif
+            <x-toggle wire:model="dineInPayLater" label="Dine-in boleh bayar nanti" icon="fa-file-invoice"
+                      description="Pesanan dine-in bisa disimpan dulu (open bill), ditambah item, lalu dibayar di akhir."
+                      :disabled="! in_array('dine_in', $serviceTypes, true)" />
             @if (! in_array('dine_in', $serviceTypes, true))
-                <p class="f-hint !mt-0"><i class="fa-solid fa-circle-info mr-1"></i>Manajemen meja hanya berlaku bila layanan Dine-in aktif.</p>
+                <p class="f-hint !mt-0"><i class="fa-solid fa-circle-info mr-1"></i>Manajemen meja & bayar nanti hanya berlaku bila layanan Dine-in aktif.</p>
             @endif
         </div>
     </div>

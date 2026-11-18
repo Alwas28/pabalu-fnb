@@ -3,6 +3,8 @@
 namespace App\Support\Receipt;
 
 use App\Enums\DiscountType;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Support\Money;
 use Illuminate\Support\Str;
@@ -97,6 +99,10 @@ class EscPosReceipt
             $this->line('Telp. '.$outlet->phone);
         }
 
+        if ($order->payment_status !== PaymentStatus::Paid) {
+            $this->feed(1)->bold(true)->line($order->status === OrderStatus::Cancelled ? '*** DIBATALKAN ***' : '*** TAGIHAN - BELUM LUNAS ***')->bold(false);
+        }
+
         $this->align('left')->rule();
         $this->pair('No', $order->number);
         $this->pair('Waktu', $time->format('d/m/Y H:i'));
@@ -139,6 +145,9 @@ class EscPosReceipt
         $this->rule();
 
         // ── Pembayaran
+        if ($order->payments->isEmpty()) {
+            $this->line('Belum dibayar');
+        }
         foreach ($order->payments as $payment) {
             $this->pair($payment->method->label(), Money::plain($payment->tendered_amount));
             if ($payment->reference) {

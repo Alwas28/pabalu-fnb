@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'code', 'name', 'phone', 'address', 'opens_at', 'closes_at', 'is_active',
-    'service_types', 'tables_enabled', 'kitchen_mode',
+    'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode',
     'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax',
     'payment_methods', 'receipt_paper_width', 'receipt_footer',
 ])]
@@ -34,6 +34,8 @@ class Outlet extends Model
         'is_active' => true,
         'service_types' => '["dine_in","takeaway"]',
         'tables_enabled' => false,
+        'dine_in_pay_later' => false,
+        'table_status_enabled' => false,
         'kitchen_mode' => 'ticket',
         'tax_enabled' => false,
         'tax_rate' => 0,
@@ -53,6 +55,8 @@ class Outlet extends Model
             'is_active' => 'boolean',
             'service_types' => AsEnumCollection::of(ServiceType::class),
             'tables_enabled' => 'boolean',
+            'dine_in_pay_later' => 'boolean',
+            'table_status_enabled' => 'boolean',
             'kitchen_mode' => KitchenMode::class,
             'tax_enabled' => 'boolean',
             'tax_rate' => 'decimal:2',
@@ -62,6 +66,16 @@ class Outlet extends Model
             'payment_methods' => AsEnumCollection::of(PaymentMethod::class),
             'receipt_paper_width' => 'integer',
         ];
+    }
+
+    public function diningTables(): HasMany
+    {
+        return $this->hasMany(DiningTable::class)->orderBy('area')->orderBy('sort_order')->orderBy('name');
+    }
+
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(CashShift::class);
     }
 
     public function orders(): HasMany
@@ -95,6 +109,18 @@ class Outlet extends Model
     public function usesTables(): bool
     {
         return $this->tables_enabled && $this->offers(ServiceType::DineIn);
+    }
+
+    /** Pesanan dine-in boleh disimpan dulu (open bill) dan dibayar belakangan. */
+    public function allowsPayLater(): bool
+    {
+        return $this->dine_in_pay_later && $this->offers(ServiceType::DineIn);
+    }
+
+    /** Status meja terisi/kosong dilacak (opsional, hanya bila meja dipakai). */
+    public function tracksTableStatus(): bool
+    {
+        return $this->table_status_enabled && $this->usesTables();
     }
 
     public function usesKitchenDisplay(): bool

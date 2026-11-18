@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Models\CashShift;
 use App\Models\MenuItem;
 use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Support\Pos\PlaceOrder;
+use App\Support\Pos\ShiftManager;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -75,7 +77,11 @@ class PlaceOrderTest extends TestCase
      */
     private function place(string $outletCode, array $items, array $payments, array $overrides = [], ?User $cashier = null): Order
     {
-        return app(PlaceOrder::class)->handle($cashier ?? $this->kasir, $this->outlet($outletCode), $overrides + [
+        $cashier ??= $this->kasir;
+        $outlet = $this->outlet($outletCode);
+        CashShift::currentFor($cashier, $outlet) ?? app(ShiftManager::class)->open($cashier, $outlet, ['opening_cash' => 0]);
+
+        return app(PlaceOrder::class)->handle($cashier, $outlet, $overrides + [
             'service_type' => 'takeaway',
             'items' => $items,
             'payments' => $payments,
@@ -213,10 +219,12 @@ class PlaceOrderTest extends TestCase
 
         // Kolaka tidak melayani dine-in; Baubau tidak memakai meja.
         $this->assertRejected('service_type', fn () => $this->place('KLK', [$water], [['method' => 'cash', 'amount' => 10000]], ['service_type' => 'dine_in'], $owner));
-        $this->assertRejected('table_number', fn () => $this->place('BAU', [$water], [['method' => 'cash', 'amount' => 10000]], ['service_type' => 'dine_in', 'table_number' => '4'], $owner));
+        $table = $this->outlet('KDI')->diningTables()->where('name', 'A4')->sole();
+        $this->assertRejected('dining_table_id', fn () => $this->place('BAU', [$water], [['method' => 'cash', 'amount' => 10000]], ['service_type' => 'dine_in', 'dining_table_id' => $table->id], $owner));
 
-        $order = $this->place('KDI', [$water], [['method' => 'cash', 'amount' => 10000]], ['service_type' => 'dine_in', 'table_number' => '4']);
-        $this->assertSame('4', $order->table_number);
+        $order = $this->place('KDI', [$water], [['method' => 'cash', 'amount' => 10000]], ['service_type' => 'dine_in', 'dining_table_id' => $table->id]);
+        $this->assertSame('A4', $order->table_number);
+        $this->assertTrue($order->diningTable->is($table));
     }
 
     public function test_only_supervisor_and_above_can_give_discounts(): void

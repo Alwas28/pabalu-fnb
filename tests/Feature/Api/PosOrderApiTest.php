@@ -6,6 +6,7 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Outlet;
 use App\Models\User;
+use App\Support\Pos\ShiftManager;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -22,6 +23,10 @@ class PosOrderApiTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->kendari = Outlet::where('code', 'KDI')->sole();
+
+        $shifts = app(ShiftManager::class);
+        $shifts->open(User::where('email', 'pabalu.kasir@gmail.com')->sole(), $this->kendari, ['opening_cash' => 0]);
+        $shifts->open(User::where('email', 'pabalu.supervisor@gmail.com')->sole(), Outlet::where('code', 'BAU')->sole(), ['opening_cash' => 0]);
     }
 
     private function actingAsUser(string $email): User
