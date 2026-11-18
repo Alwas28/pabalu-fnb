@@ -60,6 +60,9 @@ Route::middleware('auth')->group(function () {
             Volt::route('counts', 'pages.inventory.counts')->name('counts.index');
         });
 
+        // Pelanggan
+        Volt::route('customers', 'pages.customers.index')->middleware('can:customers.manage')->name('customers.index');
+
         // Pembelian & supplier
         Route::middleware('can:purchasing.manage')->prefix('purchasing')->name('purchasing.')->group(function () {
             Volt::route('/', 'pages.purchasing.index')->name('index');

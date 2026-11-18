@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OutletController;
@@ -49,6 +50,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('shifts/{shift}', [ShiftController::class, 'show'])->name('shifts.show');
         Route::post('shifts/{shift}/cash-movements', [ShiftController::class, 'movement'])->name('shifts.movements.store');
         Route::post('shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+
+        // Pelanggan
+        Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
 
         // Meja
         Route::get('outlets/{outlet}/tables', [TableController::class, 'index'])->name('outlets.tables.index');

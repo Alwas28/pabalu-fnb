@@ -62,6 +62,11 @@ class Business extends Model
         return $this->hasMany(Ingredient::class)->orderBy('name');
     }
 
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class)->orderBy('name');
+    }
+
     public function suppliers(): HasMany
     {
         return $this->hasMany(Supplier::class)->orderBy('name');

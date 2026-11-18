@@ -5,6 +5,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\Permission;
 use App\Enums\ServiceType;
 use App\Models\CashShift;
+use App\Models\Customer;
 use App\Models\DiningTable;
 use App\Models\MenuItem;
 use App\Models\Order;
@@ -46,6 +47,9 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     /** id meja terpilih (outlet yang memakai meja). */
     public string $tableId = '';
     public string $customerName = '';
+    /** Pelanggan terdaftar yang dipilih (opsional). */
+    public ?int $customerId = null;
+    public string $newCustomerPhone = '';
     public string $orderNotes = '';
 
     // Diskon (Supervisor ke atas)
@@ -191,6 +195,59 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         return $this->lastOrderId ? Order::with('payments')->find($this->lastOrderId) : null;
     }
 
+    /** Pelanggan terdaftar yang cocok dengan ketikan nama / HP. */
+    #[Computed]
+    public function customerMatches()
+    {
+        $term = trim($this->customerName);
+
+        if ($this->customerId || mb_strlen($term) < 2) {
+            return collect();
+        }
+
+        return Customer::applySearch(Customer::where('business_id', $this->outlet->business_id), $term)->orderBy('name')->limit(5)->get();
+    }
+
+    #[Computed]
+    public function selectedCustomer(): ?Customer
+    {
+        return $this->customerId ? Customer::where('business_id', $this->outlet->business_id)->find($this->customerId) : null;
+    }
+
+    public function selectCustomer(int $id): void
+    {
+        $customer = Customer::where('business_id', $this->posOutlet()->business_id)->find($id);
+        abort_unless($customer, 404);
+
+        $this->customerId = $customer->id;
+        $this->customerName = $customer->name;
+        unset($this->selectedCustomer, $this->customerMatches);
+    }
+
+    public function clearCustomer(): void
+    {
+        $this->reset('customerId', 'customerName');
+        unset($this->selectedCustomer);
+    }
+
+    /** Simpan ketikan nama sebagai pelanggan baru (nomor HP opsional). */
+    public function createCustomer(): void
+    {
+        $outlet = $this->posOutlet();
+        $phone = Customer::normalizePhone($this->newCustomerPhone);
+
+        $data = \Illuminate\Support\Facades\Validator::make(
+            ['name' => trim($this->customerName), 'phone' => $phone],
+            \Illuminate\Support\Arr::only(Customer::rules($outlet->business_id), ['name', 'phone']),
+            ['phone.unique' => 'Nomor HP sudah terdaftar — cari pelanggannya.'],
+        )->validate();
+
+        $customer = $outlet->business->customers()->create($data);
+        $this->reset('newCustomerPhone');
+        $this->selectCustomer($customer->id);
+        $this->dispatch('toast', type: 'success', message: 'Pelanggan '.$customer->name.' ditambahkan');
+    }
+
     #[Computed]
     public function shift(): ?CashShift
     {
@@ -315,6 +372,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         $this->serviceType = $order->service_type->value;
         $this->tableId = (string) $order->dining_table_id;
         $this->customerName = (string) $order->customer_name;
+        $this->customerId = $order->customer_id;
         unset($this->activeOrder);
 
         $this->dispatch('close-modal', name: 'open-orders');
@@ -495,7 +553,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
     public function clearCart(): void
     {
-        $this->reset('cart', 'tableId', 'customerName', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments', 'activeOrderId');
+        $this->reset('cart', 'tableId', 'customerName', 'customerId', 'newCustomerPhone', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments', 'activeOrderId');
         unset($this->activeOrder);
         $this->resetValidation();
     }
@@ -629,6 +687,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             'client_reference' => 'web-'.$this->checkoutToken,
             'service_type' => $this->serviceType,
             'dining_table_id' => $outlet->usesTables() && $dineIn && $this->tableId !== '' ? (int) $this->tableId : null,
+            'customer_id' => $this->customerId,
             'customer_name' => $this->customerName ?: null,
             'notes' => $this->orderNotes ?: null,
             'items' => $this->cartPayload(),
@@ -807,8 +866,34 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                             <i class="fa-solid fa-chair mr-1"></i>{{ $selectedTable ? 'Meja '.$selectedTable->name : 'Pilih meja' }}
                         </button>
                     @endif
-                    <input type="text" wire:model="customerName" @class(['f-input !py-2 !text-[12.5px]', 'col-span-2' => ! ($outlet->usesTables() && $serviceType === 'dine_in')])
-                           placeholder="Nama pelanggan{{ $this->canPayLater() && ! $outlet->usesTables() ? '' : ' (opsional)' }}" aria-label="Nama pelanggan">
+                    <div @class(['relative', 'col-span-2' => ! ($outlet->usesTables() && $serviceType === 'dine_in')]) x-data="{ open: false }" x-on:click.outside="open = false">
+                        @if ($customer = $this->selectedCustomer)
+                            <div class="f-input !py-2 !text-[12.5px] flex items-center gap-2 a-border">
+                                <i class="fa-solid fa-user a-text"></i>
+                                <span class="flex-1 truncate font-semibold text-pb-text">{{ $customer->name }}</span>
+                                <button type="button" wire:click="clearCustomer" class="text-pb-muted" aria-label="Lepas pelanggan"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        @else
+                            <input type="text" wire:model.live.debounce.300ms="customerName" x-on:focus="open = true" x-on:input="open = true" class="f-input !py-2 !text-[12.5px] w-full"
+                                   placeholder="Pelanggan{{ $this->canPayLater() && ! $outlet->usesTables() ? '' : ' (opsional)' }}" aria-label="Nama atau HP pelanggan" autocomplete="off">
+                            @if (mb_strlen(trim($customerName)) >= 2)
+                                <div x-show="open" x-cloak class="absolute z-30 left-0 right-0 top-full mt-1 rounded-xl border border-pb-border bg-pb-surface shadow-lg overflow-hidden">
+                                    @foreach ($this->customerMatches as $match)
+                                        <button type="button" wire:key="cm-{{ $match->id }}" wire:click="selectCustomer({{ $match->id }})" x-on:click="open = false" class="list-row w-full text-left !py-2 text-[12.5px]">
+                                            <i class="fa-solid fa-user text-pb-muted"></i>
+                                            <span class="flex-1 truncate text-pb-text">{{ $match->name }}</span>
+                                            <span class="text-pb-muted">{{ $match->phone }}</span>
+                                        </button>
+                                    @endforeach
+                                    <div class="px-3 py-2 border-t border-pb-border flex gap-2 items-center">
+                                        <input type="tel" wire:model="newCustomerPhone" class="f-input !py-1.5 !text-[12px] flex-1" placeholder="No. HP (opsional)" aria-label="Nomor HP pelanggan baru">
+                                        <button type="button" wire:click="createCustomer" class="btn-ghost text-[12px] font-semibold whitespace-nowrap"><i class="fa-solid fa-user-plus mr-1"></i>Simpan baru</button>
+                                    </div>
+                                    <x-input-error :messages="array_merge($errors->get('name'), $errors->get('phone'))" class="px-3 pb-2" />
+                                </div>
+                            @endif
+                        @endif
+                    </div>
                 </div>
                 <x-input-error :messages="array_merge($errors->get('dining_table_id'), $errors->get('customer_name'), $errors->get('pay_later'))" />
                 @endif

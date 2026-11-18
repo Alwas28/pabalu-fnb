@@ -5,6 +5,7 @@ namespace App\Support\Pos;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
+use App\Models\Customer;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\Outlet;
@@ -53,6 +54,7 @@ class PlaceOrder
         $data = Validator::make($input, $this->rules($outlet, $input, $payLater), $this->messages())->validate();
 
         $table = isset($data['dining_table_id']) ? $outlet->diningTables()->find($data['dining_table_id']) : null;
+        $customer = isset($data['customer_id']) ? Customer::where('business_id', $outlet->business_id)->find($data['customer_id']) : null;
 
         if ($payLater && $table && $outlet->tracksTableStatus() && $table->openOrders()->exists()) {
             throw ValidationException::withMessages([
@@ -66,7 +68,7 @@ class PlaceOrder
         $totals = OrderTotals::calculate($outlet, CartResolver::subtotal($lines), $discountType, $discountValue);
         $payments = $payLater ? [] : PaymentAllocator::allocate($data['payments'], $totals->total);
 
-        return DB::transaction(function () use ($cashier, $outlet, $shift, $data, $payLater, $table, $discountType, $discountValue, $lines, $totals, $payments) {
+        return DB::transaction(function () use ($cashier, $outlet, $shift, $data, $payLater, $table, $customer, $discountType, $discountValue, $lines, $totals, $payments) {
             // Kunci outlet agar penomoran order harian tidak bentrok saat kasir bertransaksi bersamaan.
             $outlet = Outlet::whereKey($outlet->id)->lockForUpdate()->firstOrFail();
             $now = now();
@@ -82,8 +84,9 @@ class PlaceOrder
                 'service_type' => $data['service_type'],
                 'table_number' => $table?->name,
                 'dining_table_id' => $table?->id,
-                'customer_name' => $data['customer_name'] ?? null,
-                'customer_phone' => $data['customer_phone'] ?? null,
+                'customer_id' => $customer?->id,
+                'customer_name' => ($data['customer_name'] ?? null) ?: $customer?->name,
+                'customer_phone' => ($data['customer_phone'] ?? null) ?: $customer?->phone,
                 'delivery_address' => $data['delivery_address'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'status' => OrderStatus::Confirmed,
@@ -143,7 +146,8 @@ class PlaceOrder
             'dining_table_id' => $outlet->usesTables() && $isDineIn
                 ? [$payLater ? 'required' : 'nullable', 'integer', $tableRule]
                 : ['prohibited'],
-            'customer_name' => [$payLater && ! $outlet->usesTables() ? 'required' : 'nullable', 'string', 'max:120'],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $outlet->business_id)],
+            'customer_name' => [$payLater && ! $outlet->usesTables() && empty($input['customer_id']) ? 'required' : 'nullable', 'string', 'max:120'],
             'customer_phone' => ['nullable', 'string', 'max:32'],
             'delivery_address' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:500'],

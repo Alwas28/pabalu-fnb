@@ -65,6 +65,11 @@ class Order extends Model
         return $this->belongsTo(CashShift::class, 'cash_shift_id');
     }
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function diningTable(): BelongsTo
     {
         return $this->belongsTo(DiningTable::class);
