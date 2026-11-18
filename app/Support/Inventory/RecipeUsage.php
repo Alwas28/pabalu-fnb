@@ -53,6 +53,28 @@ class RecipeUsage
         }
     }
 
+    /**
+     * Sebagian porsi item dihapus dari open bill: kembalikan bahannya bila stok dikurangi otomatis.
+     */
+    public function returnPortions(Order $order, OrderItem $item, int $quantity): void
+    {
+        if (! $order->outlet->recipe_stock_deduction) {
+            return;
+        }
+
+        $used = StockMovement::where('reference_type', $order->getMorphClass())->where('reference_id', $order->id)
+            ->where('type', StockMovementType::RecipeUsage)->exists();
+
+        if (! $used) {
+            return;
+        }
+
+        foreach ($this->requirementsFor($item, $quantity) as $need) {
+            $this->ledger->move($order->outlet, $need['ingredient'], StockMovementType::RecipeReturn, $need['quantity'],
+                $this->ledger->averageCost($order->outlet, $need['ingredient']), $order, 'Hapus '.$quantity.'× '.$item->displayName());
+        }
+    }
+
     /** Kembalikan bahan yang terpakai oleh order (dipanggil saat batal / void). */
     public function reverse(Order $order): void
     {
@@ -76,8 +98,9 @@ class RecipeUsage
      *
      * @return Collection<int, array{ingredient: Ingredient, quantity: float}>
      */
-    public function requirementsFor(OrderItem $item): Collection
+    public function requirementsFor(OrderItem $item, ?int $quantity = null): Collection
     {
+        $portions = $quantity ?? $item->quantity;
         $modifierIds = $item->modifiers()->pluck('modifier_id')->filter()->all();
 
         return RecipeItem::query()
@@ -90,7 +113,7 @@ class RecipeUsage
             ->groupBy('ingredient_id')
             ->map(fn (Collection $rows) => [
                 'ingredient' => $rows->first()->ingredient,
-                'quantity' => round($rows->sum(fn ($r) => (float) $r->quantity) * $item->quantity, 3),
+                'quantity' => round($rows->sum(fn ($r) => (float) $r->quantity) * $portions, 3),
             ])
             ->values();
     }

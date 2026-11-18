@@ -28,7 +28,7 @@ class EscPosKitchenTicket extends EscPosDocument
     /** @return Collection<int, OrderItem> */
     public static function itemsFor(Order $order, ?int $batch): Collection
     {
-        return $order->items->when($batch, fn ($items) => $items->where('kitchen_batch', $batch))->values();
+        return $order->items->where('quantity', '>', 0)->when($batch, fn ($items) => $items->where('kitchen_batch', $batch))->values();
     }
 
     public function batch(): int
@@ -52,6 +52,9 @@ class EscPosKitchenTicket extends EscPosDocument
         $this->pair('Jam', $time->format('H:i'));
         if ($order->customer_name) {
             $this->pair('Nama', $order->customer_name);
+        }
+        if ($order->delivery_channel) {
+            $this->pair('Kanal', $order->delivery_channel->label().($order->delivery_reference ? ' #'.$order->delivery_reference : ''));
         }
         $this->rule();
 

@@ -16,10 +16,12 @@ use App\Support\Pos\CancelOrder;
 use App\Support\Pos\CartLine;
 use App\Support\Pos\CartResolver;
 use App\Support\Pos\OrderTotals;
+use App\Support\Pos\MergeOrders;
 use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
 use App\Support\Pos\SettleOrder;
 use App\Support\Pos\ShiftManager;
+use App\Support\Pos\VoidOrderItem;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -50,6 +52,12 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
     /** Pelanggan terdaftar yang dipilih (opsional). */
     public ?int $customerId = null;
     public string $newCustomerPhone = '';
+
+    // Delivery
+    public string $deliveryChannel = '';
+    public string $deliveryReference = '';
+    public string $customerPhone = '';
+    public string $deliveryAddress = '';
     public string $orderNotes = '';
 
     // Diskon (Supervisor ke atas)
@@ -404,6 +412,37 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         $this->dispatch('toast', type: 'success', message: $message);
     }
 
+    /** Hapus / kurangi item open bill (Supervisor ke atas, wajib alasan). */
+    public function voidItem(int $itemId, int $quantity, string $reason = ''): void
+    {
+        $this->posOutlet();
+        $order = $this->activeOrder;
+        abort_unless($order, 404);
+        $item = $order->items->firstWhere('id', $itemId);
+        abort_unless($item, 404);
+
+        app(VoidOrderItem::class)->handle(auth()->user(), $order, $item, ['quantity' => $quantity, 'reason' => $reason]);
+
+        unset($this->activeOrder, $this->openOrders);
+        $this->dispatch('toast', type: 'success', message: $quantity.'× '.$item->displayName().' dihapus dari pesanan');
+    }
+
+    /** Gabungkan open bill lain ke open bill yang sedang dibuka. */
+    public function mergeOrder(int $sourceId): void
+    {
+        $this->posOutlet();
+        $target = $this->activeOrder;
+        abort_unless($target, 404);
+        $source = Order::where('outlet_id', $this->outletId)->open()->find($sourceId);
+        abort_unless($source, 404);
+
+        app(MergeOrders::class)->handle(auth()->user(), $target, $source);
+
+        unset($this->activeOrder, $this->openOrders, $this->tables);
+        $this->dispatch('close-modal', name: 'merge-orders');
+        $this->dispatch('toast', type: 'success', message: $source->number.' digabung ke '.$target->number);
+    }
+
     public function cancelOrder(string $reason = ''): void
     {
         $this->posOutlet();
@@ -553,7 +592,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
     public function clearCart(): void
     {
-        $this->reset('cart', 'tableId', 'customerName', 'customerId', 'newCustomerPhone', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments', 'activeOrderId');
+        $this->reset('cart', 'tableId', 'customerName', 'customerId', 'newCustomerPhone', 'deliveryChannel', 'deliveryReference', 'customerPhone', 'deliveryAddress', 'orderNotes', 'discountType', 'discountValue', 'discountReason', 'payments', 'activeOrderId');
         unset($this->activeOrder);
         $this->resetValidation();
     }
@@ -688,6 +727,10 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             'service_type' => $this->serviceType,
             'dining_table_id' => $outlet->usesTables() && $dineIn && $this->tableId !== '' ? (int) $this->tableId : null,
             'customer_id' => $this->customerId,
+            'customer_phone' => $this->customerPhone ?: null,
+            'delivery_channel' => $this->serviceType === ServiceType::Delivery->value ? ($this->deliveryChannel ?: null) : null,
+            'delivery_reference' => $this->serviceType === ServiceType::Delivery->value ? ($this->deliveryReference ?: null) : null,
+            'delivery_address' => $this->serviceType === ServiceType::Delivery->value ? ($this->deliveryAddress ?: null) : null,
             'customer_name' => $this->customerName ?: null,
             'notes' => $this->orderNotes ?: null,
             'items' => $this->cartPayload(),
@@ -843,6 +886,9 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                             <button type="button" wire:click="openTablePicker('move')" class="btn-ghost text-[12px] font-semibold"><i class="fa-solid fa-right-left mr-1"></i>Pindah meja</button>
                         @endif
                         <a href="{{ route('orders.show', $activeOrder) }}" wire:navigate class="btn-ghost text-[12px] font-semibold"><i class="fa-solid fa-receipt mr-1"></i>Detail</a>
+                        @if ($this->openOrders->count() > 1)
+                            <button type="button" x-data x-on:click="$dispatch('open-modal', 'merge-orders')" class="btn-ghost text-[12px] font-semibold"><i class="fa-solid fa-object-group mr-1"></i>Gabung</button>
+                        @endif
                         @can('cancel', $activeOrder)
                             <button type="button" x-data
                                     x-on:click="const r = prompt('Alasan pembatalan {{ $activeOrder->number }}:'); if (r !== null) $wire.cancelOrder(r)"
@@ -860,6 +906,23 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                     @endforeach
                 </div>
                 <x-input-error :messages="$errors->get('service_type')" />
+                @if ($serviceType === 'delivery')
+                    <div class="grid grid-cols-2 gap-2">
+                        <select wire:model.live="deliveryChannel" class="f-input !py-2 !text-[12.5px]" aria-label="Kanal delivery">
+                            <option value="">— Kanal delivery —</option>
+                            @foreach (\App\Enums\DeliveryChannel::cases() as $channel)
+                                <option value="{{ $channel->value }}">{{ $channel->label() }}</option>
+                            @endforeach
+                        </select>
+                        @if ($deliveryChannel === 'direct')
+                            <input type="tel" wire:model="customerPhone" class="f-input !py-2 !text-[12.5px]" placeholder="No. HP pelanggan" aria-label="Nomor HP pelanggan">
+                            <textarea wire:model="deliveryAddress" rows="2" class="f-input !py-2 !text-[12.5px] col-span-2 resize-none" placeholder="Alamat pengantaran" aria-label="Alamat pengantaran"></textarea>
+                        @elseif ($deliveryChannel !== '')
+                            <input type="text" wire:model="deliveryReference" class="f-input !py-2 !text-[12.5px]" placeholder="No. pesanan aplikasi" aria-label="Nomor pesanan aplikasi">
+                        @endif
+                    </div>
+                    <x-input-error :messages="array_merge($errors->get('delivery_channel'), $errors->get('delivery_address'), $errors->get('customer_phone'), $errors->get('delivery_reference'))" />
+                @endif
                 <div class="grid grid-cols-2 gap-2">
                     @if ($outlet->usesTables() && $serviceType === 'dine_in')
                         <button type="button" wire:click="openTablePicker('select')" @class(['f-input !py-2 !text-[12.5px] text-left truncate', 'a-border a-text font-semibold' => $selectedTable])>
@@ -901,7 +964,7 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
 
             <div class="flex-1 overflow-y-auto px-5 py-3 flex flex-col divide-y divide-pb-border min-h-[120px]">
                 @if ($activeOrder)
-                    @foreach ($activeOrder->items as $item)
+                    @foreach ($activeOrder->items->where('quantity', '>', 0) as $item)
                         <div class="py-2 flex gap-3 text-[12.5px]" wire:key="oi-{{ $item->id }}">
                             <div class="flex-1 min-w-0">
                                 <div class="text-pb-text font-semibold">{{ $item->quantity }}× {{ $item->displayName() }}</div>
@@ -910,6 +973,11 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
                                 @endif
                             </div>
                             <div class="text-pb-sub shrink-0">{{ Money::format($item->line_total) }}</div>
+                            @if ($this->canDiscount() && $item->quantity > 0)
+                                <button type="button" x-data aria-label="Hapus item"
+                                        x-on:click="const q = {{ $item->quantity }} > 1 ? parseInt(prompt('Hapus berapa porsi {{ addslashes($item->displayName()) }}? (1–{{ $item->quantity }})', '1')) : 1; if (! q) return; const r = prompt('Alasan menghapus item:'); if (r !== null) $wire.voidItem({{ $item->id }}, q, r)"
+                                        class="text-pb-muted hover:text-[#f87171] shrink-0"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                            @endif
                         </div>
                     @endforeach
                     <div class="pt-2 pb-1 text-[11px] uppercase tracking-wider text-pb-muted">{{ $cart === [] ? 'Ketuk menu untuk menambah pesanan' : 'Tambahan' }}</div>
@@ -1059,6 +1127,29 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
             <x-input-error :messages="$errors->get('dining_table_id')" />
         </div>
     </x-modal>
+
+    {{-- ═════ Gabung pesanan ═════ --}}
+    @if ($activeOrder)
+        <x-modal name="merge-orders" maxWidth="lg">
+            <div class="px-6 py-5 border-b border-pb-border">
+                <div class="font-display text-base font-bold text-pb-text">Gabungkan ke {{ $activeOrder->number }}</div>
+                <div class="text-xs text-pb-muted mt-px">Item pesanan yang dipilih dipindah ke pesanan ini; pesanan asal ditutup.</div>
+            </div>
+            <div class="py-2 max-h-[60vh] overflow-y-auto">
+                @foreach ($this->openOrders->reject(fn ($o) => $o->id === $activeOrder->id) as $other)
+                    <button type="button" wire:key="mo-{{ $other->id }}" wire:click="mergeOrder({{ $other->id }})"
+                            wire:confirm="Gabungkan {{ $other->number }} ke {{ $activeOrder->number }}?" class="list-row w-full text-left">
+                        <div class="w-10 h-10 rounded-lg a-bg-lt a-text grid place-items-center font-display font-bold shrink-0">{{ $other->table_number ?: '—' }}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[13px] font-semibold text-pb-text">{{ $other->number }}{{ $other->customer_name ? ' · '.$other->customer_name : '' }}</div>
+                            <div class="text-[11.5px] text-pb-muted">{{ $other->items_count }} item</div>
+                        </div>
+                        <div class="text-[13px] font-bold text-pb-text">{{ Money::format($other->total) }}</div>
+                    </button>
+                @endforeach
+            </div>
+        </x-modal>
+    @endif
 
     {{-- ═════ Pesanan terbuka (bayar nanti) ═════ --}}
     <x-modal name="open-orders" maxWidth="lg">

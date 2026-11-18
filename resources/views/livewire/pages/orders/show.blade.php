@@ -115,6 +115,9 @@ new #[Layout('layouts.app')] class extends Component
                                         @if ($item->notes)
                                             <div class="text-[11.5px] text-pb-muted font-normal italic">“{{ $item->notes }}”</div>
                                         @endif
+                                        @if ($item->voided_quantity > 0)
+                                            <div class="text-[11.5px] trend-down font-normal">{{ $item->voided_quantity }}× dihapus{{ $item->void_reason ? ': '.$item->void_reason : '' }}</div>
+                                        @endif
                                     </td>
                                     <td>
                                         <span class="badge {{ $item->kitchen_status->badge() }}">{{ $item->kitchen_status->label() }}</span>
@@ -207,7 +210,13 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="flex justify-between gap-3"><span class="text-pb-muted">Kasir</span><span class="text-pb-text text-right">{{ $order->cashier?->name ?? '—' }}</span></div>
                     <div class="flex justify-between gap-3"><span class="text-pb-muted">Layanan</span><span class="text-pb-text text-right">{{ $order->service_type->label() }}{{ $order->table_number ? ' · Meja '.$order->table_number : '' }}</span></div>
                     @if ($order->customer_name)
-                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Pelanggan</span><span class="text-pb-text text-right">{{ $order->customer_name }}</span></div>
+                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Pelanggan</span><span class="text-pb-text text-right">{{ $order->customer_name }}{{ $order->customer_phone ? ' · '.$order->customer_phone : '' }}</span></div>
+                    @endif
+                    @if ($order->delivery_channel)
+                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Kanal</span><span class="text-pb-text text-right">{{ $order->delivery_channel->label() }}{{ $order->delivery_reference ? ' #'.$order->delivery_reference : '' }}</span></div>
+                    @endif
+                    @if ($order->delivery_address)
+                        <div class="flex justify-between gap-3"><span class="text-pb-muted">Alamat</span><span class="text-pb-text text-right">{{ $order->delivery_address }}</span></div>
                     @endif
                     @if ($order->cancelled_at)
                         <div class="flex justify-between gap-3"><span class="text-pb-muted">Dibatalkan</span><span class="text-pb-text text-right">{{ $order->cancelled_at->timezone($tz)->format('d/m/Y H:i') }} · {{ $order->canceller?->name }}</span></div>

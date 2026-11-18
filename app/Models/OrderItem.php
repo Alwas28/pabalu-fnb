@@ -16,6 +16,7 @@ class OrderItem extends Model
         return [
             'unit_price' => 'integer',
             'quantity' => 'integer',
+            'voided_quantity' => 'integer',
             'line_total' => 'integer',
             'cost_amount' => 'integer',
             'kitchen_status' => KitchenItemStatus::class,

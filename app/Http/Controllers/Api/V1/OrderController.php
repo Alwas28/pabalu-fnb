@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\OrderResource;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Outlet;
 use App\Support\Pos\AddOrderItems;
 use App\Support\Pos\CancelOrder;
+use App\Support\Pos\MergeOrders;
 use App\Support\Pos\MoveOrderTable;
 use App\Support\Pos\PlaceOrder;
 use App\Support\Pos\RefundService;
 use App\Support\Pos\SettleOrder;
+use App\Support\Pos\VoidOrderItem;
 use App\Support\Receipt\EscPosKitchenTicket;
 use App\Support\Receipt\EscPosReceipt;
 use Illuminate\Http\JsonResponse;
@@ -113,6 +116,25 @@ class OrderController extends Controller
         $order = $settle->handle($request->user(), $order, $request->only('payments', 'discount_type', 'discount_value', 'discount_reason'));
 
         return new OrderResource($order->fresh()->loadReceipt());
+    }
+
+    /** Hapus / kurangi item open bill (Supervisor ke atas, wajib alasan). */
+    public function voidItem(Request $request, Order $order, OrderItem $item, VoidOrderItem $void): OrderResource
+    {
+        Gate::authorize('cancel', $order);
+
+        return new OrderResource($void->handle($request->user(), $order, $item, $request->only('quantity', 'reason'))->fresh()->loadReceipt());
+    }
+
+    /** Gabungkan open bill lain (source_order_id) ke open bill ini. */
+    public function merge(Request $request, Order $order, MergeOrders $merge): OrderResource
+    {
+        Gate::authorize('operate', $order);
+
+        $request->validate(['source_order_id' => ['required', 'integer']]);
+        $source = Order::where('outlet_id', $order->outlet_id)->findOrFail($request->integer('source_order_id'));
+
+        return new OrderResource($merge->handle($request->user(), $order, $source)->fresh()->loadReceipt());
     }
 
     /** Pindah meja open bill. */

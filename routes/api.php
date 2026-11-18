@@ -40,6 +40,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Open bill (dine-in bayar nanti)
         Route::post('orders/{order}/items', [OrderController::class, 'addItems'])->name('orders.items.store');
         Route::post('orders/{order}/settle', [OrderController::class, 'settle'])->name('orders.settle');
+        Route::post('orders/{order}/items/{item}/void', [OrderController::class, 'voidItem'])->scopeBindings()->name('orders.items.void');
+        Route::post('orders/{order}/merge', [OrderController::class, 'merge'])->name('orders.merge');
         Route::post('orders/{order}/move-table', [OrderController::class, 'moveTable'])->name('orders.move-table');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
         Route::post('orders/{order}/refund-requests', [OrderController::class, 'requestRefund'])->name('orders.refund-requests.store');

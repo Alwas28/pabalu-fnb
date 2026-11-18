@@ -53,10 +53,13 @@ class EscPosReceipt extends EscPosDocument
         if ($order->customer_name) {
             $this->pair('Pelanggan', $order->customer_name);
         }
+        if ($order->delivery_channel) {
+            $this->pair('Kanal', $order->delivery_channel->label().($order->delivery_reference ? ' #'.$order->delivery_reference : ''));
+        }
         $this->rule();
 
         // ── Item
-        foreach ($order->items as $item) {
+        foreach ($order->items->where('quantity', '>', 0) as $item) {
             $this->wrap($item->displayName());
             $this->pair('  '.$item->quantity.' x '.Money::plain($item->unit_price), Money::plain($item->line_total));
             foreach ($item->modifiers as $modifier) {

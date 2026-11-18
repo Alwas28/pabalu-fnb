@@ -2,6 +2,7 @@
 
 namespace App\Support\Pos;
 
+use App\Enums\DeliveryChannel;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
@@ -88,6 +89,8 @@ class PlaceOrder
                 'customer_name' => ($data['customer_name'] ?? null) ?: $customer?->name,
                 'customer_phone' => ($data['customer_phone'] ?? null) ?: $customer?->phone,
                 'delivery_address' => $data['delivery_address'] ?? null,
+                'delivery_channel' => $data['delivery_channel'] ?? null,
+                'delivery_reference' => $data['delivery_reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'status' => OrderStatus::Confirmed,
                 'payment_status' => PaymentStatus::Pending,
@@ -133,6 +136,8 @@ class PlaceOrder
     private function rules(Outlet $outlet, array $input, bool $payLater): array
     {
         $isDineIn = ($input['service_type'] ?? null) === ServiceType::DineIn->value;
+        $isDelivery = ($input['service_type'] ?? null) === ServiceType::Delivery->value;
+        $directDelivery = $isDelivery && DeliveryChannel::tryFrom((string) ($input['delivery_channel'] ?? ''))?->needsAddress();
         $tableRule = Rule::exists(DiningTable::class, 'id')->where('outlet_id', $outlet->id)->where('is_active', true);
 
         return [
@@ -147,9 +152,11 @@ class PlaceOrder
                 ? [$payLater ? 'required' : 'nullable', 'integer', $tableRule]
                 : ['prohibited'],
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $outlet->business_id)],
-            'customer_name' => [$payLater && ! $outlet->usesTables() && empty($input['customer_id']) ? 'required' : 'nullable', 'string', 'max:120'],
-            'customer_phone' => ['nullable', 'string', 'max:32'],
-            'delivery_address' => ['nullable', 'string', 'max:500'],
+            'customer_name' => [($payLater && ! $outlet->usesTables()) || $directDelivery ? Rule::requiredIf(empty($input['customer_id'])) : 'nullable', 'nullable', 'string', 'max:120'],
+            'customer_phone' => [$directDelivery ? Rule::requiredIf(empty($input['customer_id'])) : 'nullable', 'nullable', 'string', 'max:32'],
+            'delivery_channel' => $isDelivery ? ['required', Rule::enum(DeliveryChannel::class)] : ['prohibited'],
+            'delivery_reference' => $isDelivery ? ['nullable', 'string', 'max:64'] : ['prohibited'],
+            'delivery_address' => [$directDelivery ? 'required' : 'nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:500'],
             ...OrderWriter::discountRules($input),
             ...CartResolver::rules(),
@@ -169,7 +176,10 @@ class PlaceOrder
             'dining_table_id.prohibited' => 'Outlet ini tidak menggunakan manajemen meja.',
             'dining_table_id.required' => 'Pilih meja untuk pesanan bayar nanti.',
             'dining_table_id.exists' => 'Meja tidak ditemukan di outlet ini.',
-            'customer_name.required' => 'Isi nama pelanggan untuk pesanan bayar nanti.',
+            'customer_name.required' => 'Isi nama pelanggan.',
+            'customer_phone.required' => 'Isi nomor HP pelanggan untuk pesanan antar sendiri.',
+            'delivery_address.required' => 'Isi alamat pengantaran.',
+            'delivery_channel.required' => 'Pilih kanal delivery.',
             'payments.prohibited' => 'Pesanan bayar nanti dibayar saat pelunasan.',
             ...CartResolver::messages(),
             ...PaymentAllocator::messages(),

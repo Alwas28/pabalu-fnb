@@ -33,7 +33,7 @@ new #[Layout('layouts.app')] #[Title('Antrean Dapur')] class extends Component
 
         return Order::where('outlet_id', $this->outlet->id)
             ->inKitchen()
-            ->with(['items' => fn ($q) => $q->with('modifiers')->orderBy('kitchen_batch')->orderBy('id')])
+            ->with(['items' => fn ($q) => $q->where('quantity', '>', 0)->with('modifiers')->orderBy('kitchen_batch')->orderBy('id')])
             ->oldest('placed_at')
             ->get()
             ->when($this->stage !== '', fn ($tickets) => $tickets->filter(
@@ -131,7 +131,7 @@ new #[Layout('layouts.app')] #[Title('Antrean Dapur')] class extends Component
                             <div class="font-display text-base font-bold text-pb-text">
                                 {{ $order->table_number ? 'Meja '.$order->table_number : $order->service_type->label() }}
                             </div>
-                            <div class="text-[11.5px] text-pb-muted truncate">{{ $order->number }}{{ $order->customer_name ? ' · '.$order->customer_name : '' }}</div>
+                            <div class="text-[11.5px] text-pb-muted truncate">{{ $order->number }}{{ $order->delivery_channel ? ' · '.$order->delivery_channel->label() : '' }}{{ $order->customer_name ? ' · '.$order->customer_name : '' }}</div>
                         </div>
                         <span @class(['badge', 'badge-red' => $minutes >= 20, 'badge-amber' => $minutes >= 10 && $minutes < 20, 'badge-gray' => $minutes < 10])>
                             <i class="fa-regular fa-clock"></i>{{ $minutes }} mnt

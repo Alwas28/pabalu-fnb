@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryChannel;
 use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -24,6 +25,7 @@ class Order extends Model
     {
         return [
             'service_type' => ServiceType::class,
+            'delivery_channel' => DeliveryChannel::class,
             'status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
             'discount_type' => DiscountType::class,
@@ -100,6 +102,12 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class)->orderBy('id');
+    }
+
+    /** Item yang masih dipesan (bukan yang seluruhnya dihapus dari open bill). */
+    public function activeItems(): HasMany
+    {
+        return $this->items()->where('quantity', '>', 0);
     }
 
     public function payments(): HasMany

@@ -65,8 +65,11 @@
         @if ($order->customer_name)
             <div class="row"><span>Pelanggan</span><span>{{ $order->customer_name }}</span></div>
         @endif
+        @if ($order->delivery_channel)
+            <div class="row"><span>Kanal</span><span>{{ $order->delivery_channel->label() }}{{ $order->delivery_reference ? ' #'.$order->delivery_reference : '' }}</span></div>
+        @endif
         <hr>
-        @foreach ($order->items as $item)
+        @foreach ($order->items->where('quantity', '>', 0) as $item)
             <div class="item">
                 <div>{{ $item->displayName() }}</div>
                 <div class="row sub"><span>{{ $item->quantity }} × {{ Money::plain($item->unit_price) }}</span><span>{{ Money::plain($item->line_total) }}</span></div>

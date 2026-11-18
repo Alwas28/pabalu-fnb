@@ -45,6 +45,9 @@
         @if ($order->customer_name)
             <div class="row"><span>Nama</span><span>{{ $order->customer_name }}</span></div>
         @endif
+        @if ($order->delivery_channel)
+            <div class="row"><span>Kanal</span><span>{{ $order->delivery_channel->label() }}{{ $order->delivery_reference ? ' #'.$order->delivery_reference : '' }}</span></div>
+        @endif
         <hr>
         @foreach ($items as $item)
             <div class="item">{{ $item->quantity }}× {{ $item->displayName() }}</div>
