@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    /* Daftar & masuk dengan Google (Laravel Socialite). Kosongkan client_id untuk menyembunyikan tombol Google. */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
     /*
      * Pengiriman event ke Analytics Platform / Central Dashboard (outbox).
      * Kosongkan endpoint untuk mematikan: event tidak dicatat & tidak dikirim.

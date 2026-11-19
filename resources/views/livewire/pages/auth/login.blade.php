@@ -58,6 +58,16 @@ new #[Layout('layouts.guest')] #[Title('Masuk')] class extends Component
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
+    <x-input-error :messages="$errors->get('google')" class="mb-4" />
+
+    @if (filled(config('services.google.client_id')))
+        <x-google-button label="Masuk dengan Google" />
+
+        <div class="flex items-center gap-3 my-5 text-[12px] text-pb-muted">
+            <span class="h-px flex-1 bg-pb-border"></span>atau dengan password<span class="h-px flex-1 bg-pb-border"></span>
+        </div>
+    @endif
+
     <form wire:submit="login" class="flex flex-col gap-4">
         <!-- Email -->
         <div>

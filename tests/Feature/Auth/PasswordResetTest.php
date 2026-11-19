@@ -32,7 +32,11 @@ class PasswordResetTest extends TestCase
             ->set('email', $user->email)
             ->call('sendPasswordResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user) {
+            $mail = $notification->toMail($user);
+
+            return $mail->subject === 'Reset Password Akun Pabalu' && str_contains($mail->actionUrl, $notification->token);
+        });
     }
 
     public function test_reset_password_screen_can_be_rendered(): void
