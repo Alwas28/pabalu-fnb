@@ -21,6 +21,7 @@ Route::middleware(['auth', 'super-admin'])->prefix('admin')->name('admin.')->gro
     Volt::route('businesses/{business}', 'pages.admin.businesses.show')->name('businesses.show');
     Volt::route('users', 'pages.admin.users')->name('users.index');
     Volt::route('roles', 'pages.admin.roles')->name('roles');
+    Volt::route('expense-categories', 'pages.admin.expense-categories')->name('expense-categories');
     Volt::route('activity', 'pages.admin.activity')->name('activity');
     Route::view('api-docs', 'admin.api-docs')->name('api-docs');
 });

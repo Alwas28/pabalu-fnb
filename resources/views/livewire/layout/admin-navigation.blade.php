@@ -26,6 +26,7 @@ new class extends Component
             ],
             'Kontrol' => [
                 ['label' => 'Hak Akses Role', 'icon' => 'fa-user-shield', 'route' => 'admin.roles'],
+                ['label' => 'Kategori Pengeluaran', 'icon' => 'fa-tags', 'route' => 'admin.expense-categories'],
                 ['label' => 'Riwayat Tindakan', 'icon' => 'fa-clock-rotate-left', 'route' => 'admin.activity'],
             ],
             'Developer' => [

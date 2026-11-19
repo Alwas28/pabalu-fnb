@@ -112,7 +112,8 @@ class FinanceTest extends TestCase
 
         $this->actingAs($this->owner)->get(route('finance.index'))->assertOk()->assertSee('Laba Rugi');
         $this->actingAs($this->owner)->get(route('expenses.index'))->assertOk()->assertSee('Daftar Pengeluaran');
-        $this->assertSame(7, $this->business->expenseCategories()->count()); // kategori bawaan
+        $this->assertSame(8, $this->business->expenseCategories()->whereNotNull('template_id')->count()); // kategori bawaan
+        $this->assertTrue($this->business->expenseCategories()->where('name', 'Bahan Baku')->exists());
     }
 
     public function test_expense_page_records_edits_and_deletes_expenses(): void

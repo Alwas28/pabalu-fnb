@@ -46,7 +46,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
 
     public function mount(): void
     {
-        ExpenseCategory::ensureDefaultsFor($this->business());
+        ExpenseCategory::syncTemplatesFor($this->business());
 
         $period = Period::make($this->from ?: null, $this->to ?: null, $this->business()->timezone);
         $this->from = $period->from->toDateString();
@@ -69,10 +69,25 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
         return auth()->user()->accessibleOutlets();
     }
 
+    /** Semua kategori bisnis, termasuk bawaan yang sudah dinonaktifkan (untuk filter & riwayat). */
     #[Computed]
     public function categories()
     {
         return $this->business()->expenseCategories()->orderBy('name')->get();
+    }
+
+    /** Kategori yang ditawarkan di form; kategori lama dari catatan yang sedang diubah tetap ikut. */
+    #[Computed]
+    public function formCategories()
+    {
+        return $this->business()->expenseCategories()
+            ->where(fn ($q) => $q->selectable()->when($this->editingCategoryId(), fn ($q, $id) => $q->orWhere('id', $id)))
+            ->orderBy('name')->get();
+    }
+
+    private function editingCategoryId(): ?int
+    {
+        return $this->editingId ? Expense::whereKey($this->editingId)->value('expense_category_id') : null;
     }
 
     /** Pengeluaran pada periode & outlet terpilih (definisi sama dengan halaman Keuangan). */
@@ -153,7 +168,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
 
         $this->validate([
             'expenseOutletId' => ['nullable', Rule::in($outletIds)],
-            'categoryId' => ['required_without:newCategory', 'nullable', Rule::exists('expense_categories', 'id')->where('business_id', $business->id)],
+            'categoryId' => ['required_without:newCategory', 'nullable', Rule::in($this->formCategories->pluck('id')->map(fn ($id) => (string) $id)->all())],
             'newCategory' => ['nullable', 'string', 'max:80'],
             'amount' => ['required', 'integer', 'min:1', 'max:10000000000'],
             'method' => ['required', Rule::enum(PaymentMethod::class)],
@@ -181,7 +196,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
 
         $this->dispatch('close-modal', name: 'expense-form');
         $this->dispatch('toast', type: 'success', message: $expense ? 'Pengeluaran diperbarui' : 'Pengeluaran dicatat');
-        unset($this->rows, $this->summary, $this->categories);
+        unset($this->rows, $this->summary, $this->categories, $this->formCategories);
     }
 
     public function deleteExpense(int $id): void
@@ -289,14 +304,14 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
         <form wire:submit="saveExpense">
             <div class="px-6 py-5 border-b border-pb-border">
                 <div class="font-display text-base font-bold text-pb-text">{{ $editingId ? 'Ubah Pengeluaran' : 'Catat Pengeluaran' }}</div>
-                <div class="text-xs text-pb-muted mt-px">Pembelian bahan dicatat lewat modul Pembelian, bukan di sini.</div>
+                <div class="text-xs text-pb-muted mt-px">Belanja lewat Purchase Order sudah tercatat di modul Pembelian, jangan dicatat ulang di sini.</div>
             </div>
             <div class="px-6 py-5 grid grid-cols-2 gap-4">
                 <div>
                     <x-input-label for="categoryId" value="Kategori" />
                     <select wire:model="categoryId" id="categoryId" class="f-input">
                         <option value="">— Pilih —</option>
-                        @foreach ($this->categories as $category)
+                        @foreach ($this->formCategories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
                         @endforeach
                     </select>

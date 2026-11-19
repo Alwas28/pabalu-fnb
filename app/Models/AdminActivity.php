@@ -55,6 +55,10 @@ class AdminActivity extends Model
             'business.suspended' => 'Bisnis ditangguhkan',
             'business.reactivated' => 'Bisnis diaktifkan kembali',
             'roles.updated' => 'Hak akses role diubah',
+            'expense_category.created' => 'Kategori pengeluaran ditambah',
+            'expense_category.renamed' => 'Kategori pengeluaran diganti nama',
+            'expense_category.deactivated' => 'Kategori pengeluaran dinonaktifkan',
+            'expense_category.activated' => 'Kategori pengeluaran diaktifkan',
             default => $this->action,
         };
     }
@@ -62,8 +66,8 @@ class AdminActivity extends Model
     public function actionBadge(): string
     {
         return match ($this->action) {
-            'user.deactivated', 'business.suspended' => 'badge-red',
-            'user.activated', 'business.reactivated' => 'badge-green',
+            'user.deactivated', 'business.suspended', 'expense_category.deactivated' => 'badge-red',
+            'user.activated', 'business.reactivated', 'expense_category.created', 'expense_category.activated' => 'badge-green',
             default => 'badge-blue',
         };
     }

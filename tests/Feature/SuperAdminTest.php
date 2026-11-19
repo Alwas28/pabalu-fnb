@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureBusinessContext;
 use App\Models\AdminActivity;
 use App\Models\Business;
+use App\Models\ExpenseCategoryTemplate;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\UserSeeder;
@@ -163,5 +164,59 @@ class SuperAdminTest extends TestCase
 
         $this->artisan('pabalu:super-admin', ['email' => 'pabalu.owner@gmail.com'])->assertFailed();
         $this->assertFalse($this->user('pabalu.owner@gmail.com')->isSuperAdmin());
+    }
+
+    public function test_super_admin_manages_expense_categories_for_all_businesses(): void
+    {
+        $owner = $this->user('pabalu.owner@gmail.com');
+        $categories = fn () => $this->business->expenseCategories();
+
+        $this->actingAs($owner);
+        $ownerPage = fn () => Volt::test('pages.expenses.index');
+        $ownerPage();
+        $this->assertTrue($categories()->where('name', 'Bahan Baku')->exists());
+
+        // Owner mencatat di kategori bawaan & kategori buatannya sendiri.
+        $record = fn (array $input) => $ownerPage()->dispatch('expense-open')
+            ->set($input + ['amount' => '10000', 'description' => 'Catatan'])
+            ->call('saveExpense')->assertHasNoErrors();
+        $record(['categoryId' => (string) $categories()->where('name', 'Lain-lain')->value('id')]);
+        $record(['newCategory' => 'Lainnya']);
+        $record(['newCategory' => 'Kemasan']);
+        $ownCount = $categories()->count();
+
+        $this->actingAs($this->admin);
+        $admin = Volt::test('pages.admin.expense-categories');
+
+        // Kategori baru bernama sama dengan milik owner ditautkan, bukan diduplikasi.
+        $admin->set('newName', 'Kemasan')->call('create')->assertHasNoErrors();
+        $admin->set('newName', 'kemasan baru')->call('create')->assertHasNoErrors();
+        $admin->set('newName', 'Kemasan')->call('create')->assertHasErrors('name');
+
+        // Ganti nama yang bentrok dengan kategori owner: pengeluarannya digabung.
+        $lainLain = ExpenseCategoryTemplate::where('name', 'Lain-lain')->sole();
+        $admin->call('openRename', $lainLain->id)->set('renameTo', 'Lainnya')->call('rename')->assertHasNoErrors();
+
+        $pemasaran = ExpenseCategoryTemplate::where('name', 'Pemasaran')->sole();
+        $admin->call('toggle', $pemasaran->id);
+        $this->assertFalse($pemasaran->fresh()->is_active);
+
+        $this->actingAs($owner);
+        $page = $ownerPage();
+
+        $this->assertSame($ownCount, $categories()->count()); // + "kemasan baru", − "Lain-lain" yang digabung
+        $this->assertNotNull($categories()->where('name', 'Kemasan')->value('template_id'));
+        $this->assertFalse($categories()->where('name', 'Lain-lain')->exists());
+        $this->assertSame(2, $categories()->where('name', 'Lainnya')->sole()->expenses()->count());
+
+        $pemasaranId = $categories()->where('name', 'Pemasaran')->value('id');
+        $this->assertFalse($page->get('formCategories')->contains('id', $pemasaranId));
+        $page->dispatch('expense-open')
+            ->set(['categoryId' => (string) $pemasaranId, 'amount' => '10000', 'description' => 'Brosur'])
+            ->call('saveExpense')
+            ->assertHasErrors('categoryId');
+
+        $this->assertSame(1, AdminActivity::where('action', 'expense_category.renamed')->count());
+        $this->assertSame(1, AdminActivity::where('action', 'expense_category.deactivated')->count());
     }
 }

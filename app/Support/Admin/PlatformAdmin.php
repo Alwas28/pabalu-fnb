@@ -6,11 +6,15 @@ use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Models\AdminActivity;
 use App\Models\Business;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
+use App\Models\ExpenseCategoryTemplate;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -130,6 +134,67 @@ class PlatformAdmin
         }
     }
 
+    /**
+     * Tambah kategori pengeluaran bawaan. Bisnis mendapatkannya saat membuka menu Pengeluaran.
+     *
+     * @throws ValidationException
+     */
+    public function createExpenseCategory(string $name): ExpenseCategoryTemplate
+    {
+        $template = ExpenseCategoryTemplate::create(['name' => $this->expenseCategoryName($name)]);
+        AdminActivity::record('expense_category.created', $template, $template->name);
+
+        return $template;
+    }
+
+    /**
+     * Ganti nama kategori bawaan beserta salinannya di setiap bisnis. Bila bisnis sudah punya kategori
+     * sendiri dengan nama baru, pengeluarannya digabung ke kategori tersebut.
+     *
+     * @throws ValidationException
+     */
+    public function renameExpenseCategory(ExpenseCategoryTemplate $template, string $name): void
+    {
+        $name = $this->expenseCategoryName($name, $template);
+        $before = $template->name;
+
+        if ($name === $before) {
+            return;
+        }
+
+        DB::transaction(function () use ($template, $name, $before) {
+            $template->update(['name' => $name]);
+
+            foreach ($template->categories()->get() as $category) {
+                $sameName = ExpenseCategory::where('business_id', $category->business_id)
+                    ->where('name', $name)->whereKeyNot($category->id)->first();
+
+                if ($sameName === null) {
+                    $category->update(['name' => $name]);
+
+                    continue;
+                }
+
+                Expense::where('expense_category_id', $category->id)->update(['expense_category_id' => $sameName->id]);
+                $sameName->update(['template_id' => $template->id]);
+                $category->delete();
+            }
+
+            AdminActivity::record('expense_category.renamed', $template, $name, ['sebelumnya' => $before]);
+        });
+    }
+
+    /** Kategori bawaan nonaktif tidak ditawarkan lagi saat mencatat; riwayat pengeluarannya tetap utuh. */
+    public function setExpenseCategoryActive(ExpenseCategoryTemplate $template, bool $active): void
+    {
+        if ($template->is_active === $active) {
+            return;
+        }
+
+        $template->update(['is_active' => $active]);
+        AdminActivity::record($active ? 'expense_category.activated' : 'expense_category.deactivated', $template, $template->name);
+    }
+
     /** @return list<UserRole> */
     public static function configurableRoles(): array
     {
@@ -153,6 +218,16 @@ class PlatformAdmin
             ->filter(fn (Permission $p) => in_array($p, self::grantablePermissions(), true))
             ->map(fn (Permission $p) => $p->value)
             ->sort()->values()->all();
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function expenseCategoryName(string $name, ?ExpenseCategoryTemplate $ignore = null): string
+    {
+        return Validator::make(['name' => trim($name)], [
+            'name' => ['required', 'string', 'max:80', Rule::unique('expense_category_templates', 'name')->ignore($ignore)],
+        ], [], ['name' => 'nama kategori'])->validate()['name'];
     }
 
     /**
