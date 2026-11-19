@@ -18,6 +18,7 @@ new #[Layout('layouts.app')] #[Title('Hak Akses Role')] class extends Component
 
     public function mount(): void
     {
+        abort_unless(config('features.role_permissions'), 404);
         $this->authorize('roles.manage');
         $this->loadGrants();
     }

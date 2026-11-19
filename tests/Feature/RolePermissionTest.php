@@ -24,6 +24,7 @@ class RolePermissionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['features.role_permissions' => true]);
         $this->seed(DatabaseSeeder::class);
         $this->business = Business::where('name', 'Pabalu Coffee & Kitchen')->sole();
     }
@@ -37,6 +38,17 @@ class RolePermissionTest extends TestCase
     {
         $this->actingAs($this->user('pabalu.owner@gmail.com'))->get(route('settings.roles'))->assertOk()->assertSee('Hak Akses Role');
         $this->actingAs($this->user('pabalu.admin@gmail.com'))->get(route('settings.roles'))->assertForbidden();
+    }
+
+    public function test_role_settings_are_hidden_and_ignored_when_feature_is_off(): void
+    {
+        config(['features.role_permissions' => false]);
+        $this->business->update(['role_permissions' => [UserRole::Kasir->value => ['orders.view']]]);
+        $owner = $this->user('pabalu.owner@gmail.com');
+
+        $this->actingAs($owner)->get(route('settings.roles'))->assertNotFound();
+        $this->actingAs($owner)->get(route('dashboard'))->assertOk()->assertDontSee('Hak Akses Role');
+        $this->assertTrue($this->user('pabalu.kasir@gmail.com')->hasPermission(Permission::UsePos));
     }
 
     public function test_owner_grants_and_revokes_permissions_per_role(): void

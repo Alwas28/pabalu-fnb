@@ -118,7 +118,7 @@ class Business extends Model
             return Permission::cases();
         }
 
-        $custom = $this->role_permissions[$role->value] ?? null;
+        $custom = config('features.role_permissions') ? ($this->role_permissions[$role->value] ?? null) : null;
         $permissions = $custom === null
             ? $role->permissions()
             : array_values(array_filter(array_map(fn ($p) => Permission::tryFrom($p), $custom)));

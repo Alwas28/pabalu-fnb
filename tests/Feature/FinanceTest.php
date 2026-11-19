@@ -118,7 +118,6 @@ class FinanceTest extends TestCase
             ->set('description', 'Sabun & tisu')
             ->call('saveExpense')
             ->assertHasNoErrors();
-        dump(Expense::all()->toArray(), now()->toDateTimeString());
 
         $this->assertSame(50000, $this->metrics()->expenseTotal());
     }
