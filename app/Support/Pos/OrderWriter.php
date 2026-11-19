@@ -11,6 +11,7 @@ use App\Models\CashShift;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -120,9 +121,9 @@ class OrderWriter
     /**
      * @param  list<array{method: PaymentMethod, amount: int, tendered_amount: int, change_amount: int, reference: ?string}>  $payments
      */
-    public static function writePayments(Order $order, array $payments, User $cashier, CashShift $shift): void
+    public static function writePayments(Order $order, array $payments, User $cashier, CashShift $shift, ?CarbonInterface $paidAt = null): void
     {
-        $now = now();
+        $now = $paidAt ?? now();
 
         foreach ($payments as $payment) {
             $order->payments()->create($payment + [

@@ -91,6 +91,27 @@ new #[Layout('layouts.app')] class extends Component
         <span>/</span><span>{{ $order->number }}</span>
     </div>
 
+    @if ($order->placed_offline)
+        <div class="card animate-fadeUp">
+            <div class="card-body flex gap-3 items-start">
+                <i class="fa-solid {{ $order->sync_issues ? 'fa-triangle-exclamation text-amber-500' : 'fa-wifi text-pb-muted' }} mt-0.5"></i>
+                <div class="text-[13px] min-w-0">
+                    <div class="font-semibold">
+                        Transaksi offline dari perangkat {{ $order->device?->code }}{{ $order->device ? ' ('.$order->device->name.')' : '' }}
+                    </div>
+                    <div class="text-pb-muted text-[12px]">Disinkron {{ $order->synced_at?->timezone($order->business->timezone ?: config('app.timezone'))->format('d/m/Y H:i') }}. Harga & total mengikuti struk yang dicetak di perangkat.</div>
+                    @if ($order->sync_issues)
+                        <ul class="mt-2 list-disc pl-5 space-y-0.5">
+                            @foreach ($order->sync_issues as $issue)
+                                <li>{{ $issue }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="two-col">
         <div class="flex flex-col gap-5 min-w-0">
             <div class="card overflow-hidden animate-fadeUp">

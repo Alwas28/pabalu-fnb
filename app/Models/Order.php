@@ -44,6 +44,9 @@ class Order extends Model
             'placed_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'placed_offline' => 'boolean',
+            'synced_at' => 'datetime',
+            'sync_issues' => 'array',
         ];
     }
 
@@ -70,6 +73,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function device(): BelongsTo
+    {
+        return $this->belongsTo(PosDevice::class, 'pos_device_id');
     }
 
     public function diningTable(): BelongsTo

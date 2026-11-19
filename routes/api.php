@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\MenuController;
+use App\Http\Controllers\Api\V1\OfflineController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OutletController;
 use App\Http\Controllers\Api\V1\ShiftController;
@@ -60,5 +61,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Meja
         Route::get('outlets/{outlet}/tables', [TableController::class, 'index'])->name('outlets.tables.index');
         Route::post('tables/{table}/clear', [TableController::class, 'clear'])->name('tables.clear');
+
+        // Mode offline (aplikasi Android)
+        Route::post('outlets/{outlet}/pos-devices', [OfflineController::class, 'register'])->name('outlets.pos-devices.store');
+        Route::get('pos-devices/{device}/bundle', [OfflineController::class, 'bundle'])->name('pos-devices.bundle');
+        Route::post('pos-devices/{device}/sync', [OfflineController::class, 'sync'])->middleware('throttle:60,1')->name('pos-devices.sync');
     });
 });

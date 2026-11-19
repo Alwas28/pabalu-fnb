@@ -119,7 +119,9 @@ class PlaceOrder
         $timezone = $outlet->business->timezone ?: config('app.timezone');
         $prefix = $outlet->code.'-'.now($timezone)->format('ymd').'-';
 
+        // Nomor offline (KDI-261118-K1-0001) punya urutan sendiri per perangkat.
         $last = Order::where('outlet_id', $outlet->id)
+            ->where('placed_offline', false)
             ->where('number', 'like', $prefix.'%')
             ->orderByDesc('number')
             ->value('number');

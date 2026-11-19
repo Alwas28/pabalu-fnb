@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'code', 'name', 'phone', 'address', 'opens_at', 'closes_at', 'is_active',
-    'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction',
+    'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction', 'offline_enabled', 'offline_max_hours',
     'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax',
     'payment_methods', 'receipt_paper_width', 'receipt_footer',
 ])]
@@ -44,6 +44,8 @@ class Outlet extends Model
         'kitchen_use_preparing' => true,
         'kitchen_use_ready' => true,
         'recipe_stock_deduction' => false,
+        'offline_enabled' => false,
+        'offline_max_hours' => 24,
         'tax_enabled' => false,
         'tax_rate' => 0,
         'service_charge_enabled' => false,
@@ -68,6 +70,8 @@ class Outlet extends Model
             'kitchen_use_preparing' => 'boolean',
             'kitchen_use_ready' => 'boolean',
             'recipe_stock_deduction' => 'boolean',
+            'offline_enabled' => 'boolean',
+            'offline_max_hours' => 'integer',
             'tax_enabled' => 'boolean',
             'tax_rate' => 'decimal:2',
             'service_charge_enabled' => 'boolean',
@@ -91,6 +95,11 @@ class Outlet extends Model
     public function shifts(): HasMany
     {
         return $this->hasMany(CashShift::class);
+    }
+
+    public function posDevices(): HasMany
+    {
+        return $this->hasMany(PosDevice::class);
     }
 
     public function orders(): HasMany
@@ -161,7 +170,7 @@ class Outlet extends Model
     /** @return list<string> */
     public function auditedAttributes(): array
     {
-        return ['name', 'is_active', 'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction', 'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax', 'payment_methods', 'receipt_paper_width'];
+        return ['name', 'is_active', 'service_types', 'tables_enabled', 'dine_in_pay_later', 'table_status_enabled', 'kitchen_mode', 'kitchen_use_preparing', 'kitchen_use_ready', 'recipe_stock_deduction', 'offline_enabled', 'offline_max_hours', 'tax_enabled', 'tax_rate', 'service_charge_enabled', 'service_charge_rate', 'prices_include_tax', 'payment_methods', 'receipt_paper_width'];
     }
 
     public function auditBusinessId(): ?int

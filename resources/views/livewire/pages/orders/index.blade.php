@@ -23,6 +23,10 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
+    /** '' = semua, 'offline' = dari kasir offline, 'review' = offline dengan catatan sinkron (semua tanggal). */
+    #[Url(as: 'sync')]
+    public string $syncFilter = '';
+
     public function mount(): void
     {
         $this->date = $this->date ?: now($this->timezone())->toDateString();
@@ -59,7 +63,10 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
 
         return Order::query()
             ->whereIn('outlet_id', $selected)
-            ->whereBetween('placed_at', [$day->copy()->startOfDay()->utc(), $day->copy()->endOfDay()->utc()])
+            ->when($this->syncFilter === 'review',
+                fn ($q) => $q->where('placed_offline', true)->whereNotNull('sync_issues'),
+                fn ($q) => $q->whereBetween('placed_at', [$day->copy()->startOfDay()->utc(), $day->copy()->endOfDay()->utc()]))
+            ->when($this->syncFilter === 'offline', fn ($q) => $q->where('placed_offline', true))
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('number', 'like', '%'.$this->search.'%')
                 ->orWhere('customer_name', 'like', '%'.$this->search.'%')));
@@ -111,7 +118,14 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-pb-muted text-xs"></i>
                     <input type="search" wire:model.live.debounce.300ms="search" class="f-input !py-1.5 !pl-8 !w-52 !text-[12.5px]" placeholder="No. order / pelanggan">
                 </div>
-                <input type="date" wire:model.live="date" class="f-input !py-1.5 !w-40 !text-[12.5px]" aria-label="Tanggal">
+                @if ($syncFilter !== 'review')
+                    <input type="date" wire:model.live="date" class="f-input !py-1.5 !w-40 !text-[12.5px]" aria-label="Tanggal">
+                @endif
+                <select wire:model.live="syncFilter" class="f-input !py-1.5 !w-64 !text-[12.5px]" aria-label="Sumber transaksi">
+                    <option value="">Semua transaksi</option>
+                    <option value="offline">Dari kasir offline</option>
+                    <option value="review">Offline perlu dicek (semua tanggal)</option>
+                </select>
                 @if ($this->outlets->count() > 1)
                     <select wire:model.live="outletId" class="f-input !py-1.5 !w-44 !text-[12.5px]" aria-label="Outlet">
                         <option value="all">Semua outlet</option>
@@ -132,9 +146,13 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
                         <tr wire:key="order-{{ $order->id }}" class="cursor-pointer" onclick="Livewire.navigate('{{ route('orders.show', $order) }}')">
                             <td class="td-main">
                                 <a href="{{ route('orders.show', $order) }}" wire:navigate class="link">{{ $order->number }}</a>
+                                @if ($order->placed_offline)
+                                    <i class="fa-solid {{ $order->sync_issues ? 'fa-triangle-exclamation text-amber-500' : 'fa-wifi text-pb-muted' }} ml-1 text-[11px]"
+                                       title="{{ $order->sync_issues ? 'Transaksi offline — ada catatan sinkron' : 'Transaksi offline' }}"></i>
+                                @endif
                                 <div class="text-[11px] text-pb-muted font-normal">{{ $order->items_count }} item{{ $order->customer_name ? ' · '.$order->customer_name : '' }}</div>
                             </td>
-                            <td class="whitespace-nowrap">{{ $order->placed_at->timezone($this->timezone())->format('H:i') }}</td>
+                            <td class="whitespace-nowrap">{{ $order->placed_at->timezone($this->timezone())->format($syncFilter === 'review' ? 'd/m H:i' : 'H:i') }}</td>
                             <td>{{ $order->service_type->label() }}{{ $order->table_number ? ' · Meja '.$order->table_number : '' }}</td>
                             <td>{{ $order->cashier?->name ?? '—' }}</td>
                             <td class="text-[12px]">{{ $order->payments->map(fn ($p) => $p->method->label())->unique()->join(' + ') }}</td>
@@ -145,7 +163,7 @@ new #[Layout('layouts.app')] #[Title('Pesanan')] class extends Component
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center !py-8">Belum ada pesanan pada tanggal ini.</td></tr>
+                        <tr><td colspan="7" class="text-center !py-8">{{ $syncFilter === 'review' ? 'Tidak ada transaksi offline yang perlu dicek.' : 'Belum ada pesanan pada tanggal ini.' }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

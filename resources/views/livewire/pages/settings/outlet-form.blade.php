@@ -32,6 +32,10 @@ new #[Layout('layouts.app')] class extends Component
     public bool $kitchenUseReady = true;
     public bool $recipeStockDeduction = false;
 
+    // Kasir offline (aplikasi Android)
+    public bool $offlineEnabled = false;
+    public string $offlineMaxHours = '24';
+
     // Pajak & service charge
     public bool $taxEnabled = false;
     public string $taxRate = '10';
@@ -69,6 +73,8 @@ new #[Layout('layouts.app')] class extends Component
                 'kitchenUsePreparing' => $outlet->kitchen_use_preparing,
                 'kitchenUseReady' => $outlet->kitchen_use_ready,
                 'recipeStockDeduction' => $outlet->recipe_stock_deduction,
+                'offlineEnabled' => $outlet->offline_enabled,
+                'offlineMaxHours' => (string) $outlet->offline_max_hours,
                 'taxEnabled' => $outlet->tax_enabled,
                 'taxRate' => (string) (float) $outlet->tax_rate,
                 'serviceChargeEnabled' => $outlet->service_charge_enabled,
@@ -125,6 +131,8 @@ new #[Layout('layouts.app')] class extends Component
             'kitchenUsePreparing' => ['boolean'],
             'kitchenUseReady' => ['boolean'],
             'recipeStockDeduction' => ['boolean'],
+            'offlineEnabled' => ['boolean'],
+            'offlineMaxHours' => ['required', 'integer', 'min:1', 'max:168'],
             'taxEnabled' => ['boolean'],
             'taxRate' => [Rule::requiredIf($this->taxEnabled), 'nullable', 'numeric', 'min:0', 'max:100'],
             'serviceChargeEnabled' => ['boolean'],
@@ -169,6 +177,8 @@ new #[Layout('layouts.app')] class extends Component
             'kitchen_use_preparing' => $this->kitchenUsePreparing,
             'kitchen_use_ready' => $this->kitchenUseReady,
             'recipe_stock_deduction' => $this->recipeStockDeduction,
+            'offline_enabled' => $this->offlineEnabled,
+            'offline_max_hours' => (int) $this->offlineMaxHours,
             'tax_enabled' => $this->taxEnabled,
             'tax_rate' => $this->taxEnabled ? $this->taxRate : 0,
             'service_charge_enabled' => $this->serviceChargeEnabled,
@@ -192,11 +202,23 @@ new #[Layout('layouts.app')] class extends Component
         $this->redirectRoute('settings.business', navigate: true);
     }
 
+    /** Cabut perangkat kasir: token offline-nya tidak bisa sinkron atau mengunduh data lagi. */
+    public function revokeDevice(int $deviceId): void
+    {
+        $this->authorize('update', $this->outlet);
+
+        $device = $this->outlet->posDevices()->findOrFail($deviceId);
+        $device->forceFill(['revoked_at' => now()])->save();
+
+        $this->dispatch('toast', message: 'Perangkat '.$device->code.' dicabut');
+    }
+
     public function with(): array
     {
         $business = $this->business();
 
         return [
+            'devices' => $this->outlet?->posDevices()->with('registrar')->withCount(['orders as offline_orders_count' => fn ($q) => $q->where('placed_offline', true)])->orderBy('id')->get() ?? collect(),
             'gatewayActive' => $business->paymentGatewayActive(),
             'gatewayLabel' => $business->payment_gateway_provider?->label(),
         ];
@@ -337,6 +359,58 @@ new #[Layout('layouts.app')] class extends Component
         <div class="card-body">
             <x-toggle wire:model="recipeStockDeduction" label="Kurangi stok bahan otomatis dari resep" icon="fa-book-open"
                       description="Setiap penjualan mengurangi bahan sesuai resep menu, varian & modifier. Bila nonaktif, resep tetap dipakai untuk menghitung food cost." />
+        </div>
+    </div>
+
+    {{-- ── Kasir offline ── --}}
+    <div class="card animate-fadeUp d2">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="fa-solid fa-wifi"></i>Kasir Offline</div>
+                <div class="section-desc">Aplikasi kasir Android tetap bisa berjualan saat internet putus, lalu sinkron otomatis.</div>
+            </div>
+        </div>
+        <div class="card-body flex flex-col gap-4">
+            <x-toggle wire:model.live="offlineEnabled" label="Izinkan kasir offline" icon="fa-cloud-arrow-up"
+                      description="Saat offline hanya pesanan yang langsung dibayar (tunai atau non-tunai dikonfirmasi manual). Bayar nanti, payment gateway & layar dapur butuh internet." />
+
+            @if ($offlineEnabled)
+                <div class="max-w-xs">
+                    <x-input-label for="offlineMaxHours" value="Batas lama offline (jam)" />
+                    <x-text-input wire:model="offlineMaxHours" id="offlineMaxHours" type="number" min="1" max="168" />
+                    <p class="f-hint">Setelah batas ini aplikasi meminta tersambung internet dulu. Transaksi yang terlambat sinkron tetap diterima dan ditandai.</p>
+                    <x-input-error :messages="$errors->get('offlineMaxHours')" />
+                </div>
+            @endif
+
+            @if ($outlet)
+                <div>
+                    <div class="text-[13px] font-semibold mb-2">Perangkat kasir terdaftar</div>
+                    @forelse ($devices as $device)
+                        <div wire:key="device-{{ $device->id }}" class="flex items-center gap-3 py-2 border-t border-pb-border first:border-t-0">
+                            <span class="badge {{ $device->isRevoked() ? 'badge-gray' : 'badge-blue' }}">{{ $device->code }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[13px] font-medium truncate">{{ $device->name }}</div>
+                                <div class="text-[11.5px] text-pb-muted">
+                                    {{ $device->offline_orders_count }} transaksi offline ·
+                                    {{ $device->last_synced_at ? 'sinkron '.$device->last_synced_at->diffForHumans() : 'belum pernah sinkron' }}
+                                    @if ($device->registrar) · didaftarkan {{ $device->registrar->name }} @endif
+                                </div>
+                            </div>
+                            @if ($device->isRevoked())
+                                <span class="badge badge-red">Dicabut</span>
+                            @else
+                                <button type="button" class="btn-ghost" style="color:#f87171" wire:click="revokeDevice({{ $device->id }})"
+                                        wire:confirm="Cabut perangkat {{ $device->code }}? Transaksi yang belum sinkron di perangkat ini tidak bisa dikirim lagi.">
+                                    Cabut
+                                </button>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="text-[12.5px] text-pb-muted">Belum ada. Perangkat terdaftar otomatis saat aplikasi Android login di outlet ini.</p>
+                    @endforelse
+                </div>
+            @endif
         </div>
     </div>
 
