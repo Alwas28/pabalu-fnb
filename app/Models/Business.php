@@ -32,7 +32,14 @@ class Business extends Model
             'payment_gateway_sandbox' => 'boolean',
             'payment_gateway_credentials' => 'encrypted:array',
             'role_permissions' => 'array',
+            'suspended_at' => 'datetime',
         ];
+    }
+
+    /** Ditangguhkan super admin: semua anggotanya tidak bisa memakai bisnis ini. */
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
     }
 
     public function owner(): BelongsTo
@@ -107,7 +114,8 @@ class Business extends Model
      * Gateway hanya dianggap aktif bila dinyalakan DAN provider dipilih.
      */
     /**
-     * Izin efektif sebuah role di bisnis ini: pengaturan owner bila ada, jika tidak izin bawaan.
+     * Izin efektif sebuah role di bisnis ini, berurutan: pengaturan owner (bila fitur diaktifkan),
+     * pengaturan super admin untuk seluruh aplikasi, lalu izin bawaan role.
      * Owner selalu memegang semua izin; izin khusus owner tidak pernah diberikan ke role lain.
      *
      * @return list<Permission>
@@ -118,7 +126,8 @@ class Business extends Model
             return Permission::cases();
         }
 
-        $custom = config('features.role_permissions') ? ($this->role_permissions[$role->value] ?? null) : null;
+        $custom = (config('features.role_permissions') ? ($this->role_permissions[$role->value] ?? null) : null)
+            ?? (PlatformSetting::get(PlatformSetting::ROLE_PERMISSIONS, [])[$role->value] ?? null);
         $permissions = $custom === null
             ? $role->permissions()
             : array_values(array_filter(array_map(fn ($p) => Permission::tryFrom($p), $custom)));

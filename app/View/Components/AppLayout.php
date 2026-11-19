@@ -17,6 +17,7 @@ class AppLayout extends Component
      */
     public function render(): View
     {
-        return view('layouts.app');
+        // Halaman bersama (mis. Profil Akun) memakai panel admin bagi super admin.
+        return view(auth()->user()?->isSuperAdmin() && ! auth()->user()->hasBusiness() ? 'layouts.admin' : 'layouts.app');
     }
 }

@@ -39,7 +39,29 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
+            'deactivated_at' => 'datetime',
         ];
+    }
+
+    /* ─────────────── Status akun platform ─────────────── */
+
+    /** Pengelola aplikasi (panel /admin), bukan admin bisnis/outlet. */
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
+    }
+
+    /** Akun dinonaktifkan super admin: tidak bisa login web maupun aplikasi kasir. */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
+    }
+
+    /** Pemilik minimal satu bisnis. */
+    public function ownsBusiness(): bool
+    {
+        return $this->memberships()->where('role', UserRole::Owner)->exists();
     }
 
     /* ─────────────── Relasi ─────────────── */
@@ -74,7 +96,12 @@ class User extends Authenticatable
             return $this->resolvedMembership;
         }
 
-        $memberships = $this->memberships()->where('is_active', true)->with('business')->get();
+        // Bisnis yang ditangguhkan super admin tidak bisa dipakai oleh anggotanya.
+        $memberships = $this->memberships()
+            ->where('is_active', true)
+            ->whereHas('business', fn ($q) => $q->whereNull('suspended_at'))
+            ->with('business')
+            ->get();
 
         $membership = $memberships->firstWhere('business_id', $this->current_business_id)
             ?? $memberships->first();

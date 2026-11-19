@@ -18,6 +18,9 @@ class UserSeeder extends Seeder
 {
     public const DEFAULT_PASSWORD = 'password';
 
+    /** Akun super admin demo (pengelola aplikasi, tidak tergabung di bisnis). */
+    public const SUPER_ADMIN = ['name' => 'Super Admin Pabalu', 'email' => 'pabalu.superadmin@gmail.com'];
+
     /**
      * @return array<int, array{name: string, email: string, role: UserRole, outlets: list<string>}>
      */
@@ -55,9 +58,20 @@ class UserSeeder extends Seeder
             ])->save();
         }
 
+        $admin = User::firstOrNew(['email' => self::SUPER_ADMIN['email']]);
+        $admin->forceFill([
+            'name' => self::SUPER_ADMIN['name'],
+            'password' => $password,
+            'is_super_admin' => true,
+            'email_verified_at' => $admin->email_verified_at ?? now(),
+        ])->save();
+
         $this->command?->table(
             ['Role', 'Email', 'Password'],
-            array_map(fn (array $a) => [$a['role']->label(), $a['email'], self::DEFAULT_PASSWORD], self::accounts()),
+            [
+                ['Super Admin', self::SUPER_ADMIN['email'], self::DEFAULT_PASSWORD],
+                ...array_map(fn (array $a) => [$a['role']->label(), $a['email'], self::DEFAULT_PASSWORD], self::accounts()),
+            ],
         );
     }
 }

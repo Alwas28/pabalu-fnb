@@ -17,6 +17,8 @@ class EnsureBusinessContext
 {
     public const DEACTIVATED_MESSAGE = 'Akses Anda ke bisnis telah dinonaktifkan. Hubungi pemilik atau admin bisnis.';
 
+    public const SUSPENDED_MESSAGE = 'Bisnis Anda sedang ditangguhkan oleh pengelola aplikasi. Hubungi tim Pabalu untuk informasi lebih lanjut.';
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -26,10 +28,17 @@ class EnsureBusinessContext
         }
 
         $deactivated = $user->memberships()->exists();
+        $suspended = $user->memberships()->where('is_active', true)->whereHas('business', fn ($q) => $q->whereNotNull('suspended_at'))->exists();
+        $message = $suspended ? self::SUSPENDED_MESSAGE : self::DEACTIVATED_MESSAGE;
         $isApi = $request->expectsJson() || $request->is('api/*');
 
         if ($isApi) {
-            abort(403, $deactivated ? self::DEACTIVATED_MESSAGE : 'Akun belum terdaftar di bisnis mana pun.');
+            abort(403, $deactivated ? $message : 'Akun belum terdaftar di bisnis mana pun.');
+        }
+
+        // Super admin tidak tergabung di bisnis: arahkan ke panel admin.
+        if (! $deactivated && $user->isSuperAdmin()) {
+            return redirect()->route('admin.dashboard');
         }
 
         if ($deactivated) {
@@ -37,7 +46,7 @@ class EnsureBusinessContext
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')->with('status', self::DEACTIVATED_MESSAGE);
+            return redirect()->route('login')->with('status', $message);
         }
 
         return redirect()->route('onboarding');

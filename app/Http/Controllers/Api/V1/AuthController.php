@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Resources\V1\MeResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,10 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
+        }
+
+        if ($user->isDeactivated()) {
+            abort(403, EnsureAccountIsActive::MESSAGE);
         }
 
         if (! $user->hasBusiness()) {

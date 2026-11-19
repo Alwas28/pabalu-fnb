@@ -27,6 +27,13 @@ new #[Layout('layouts.guest')] #[Title('Mulai')] class extends Component
     {
         $user = auth()->user();
 
+        // Super admin mengelola aplikasi, tidak membuat bisnis.
+        if ($user->isSuperAdmin()) {
+            $this->redirectRoute('admin.dashboard', navigate: true);
+
+            return;
+        }
+
         // Sudah punya bisnis → tidak perlu onboarding.
         if ($user->hasBusiness()) {
             $this->redirectRoute('dashboard', navigate: true);

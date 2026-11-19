@@ -14,6 +14,17 @@ Route::get('r/{token}', [ReceiptController::class, 'show'])
     ->where('token', '[A-Za-z0-9]{32}')
     ->name('receipts.show');
 
+// Panel super admin (pengelola aplikasi) — terpisah dari aplikasi bisnis.
+Route::middleware(['auth', 'super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Volt::route('/', 'pages.admin.dashboard')->name('dashboard');
+    Volt::route('businesses', 'pages.admin.businesses.index')->name('businesses.index');
+    Volt::route('businesses/{business}', 'pages.admin.businesses.show')->name('businesses.show');
+    Volt::route('users', 'pages.admin.users')->name('users.index');
+    Volt::route('roles', 'pages.admin.roles')->name('roles');
+    Volt::route('activity', 'pages.admin.activity')->name('activity');
+    Route::view('api-docs', 'admin.api-docs')->name('api-docs');
+});
+
 Route::middleware('auth')->group(function () {
     Route::view('profile', 'profile')->name('profile');
 

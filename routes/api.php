@@ -24,7 +24,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->middleware('throttle:pos-login')
         ->name('auth.login');
 
-    Route::middleware(['auth:sanctum', 'ability:pos', 'business', 'can:pos.use'])->group(function () {
+    Route::middleware(['auth:sanctum', 'active', 'ability:pos', 'business', 'can:pos.use'])->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
 

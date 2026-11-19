@@ -22,7 +22,9 @@ new #[Layout('layouts.guest')] #[Title('Masuk')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $home = auth()->user()->isSuperAdmin() ? route('admin.dashboard', absolute: false) : route('dashboard', absolute: false);
+
+        $this->redirectIntended(default: $home, navigate: true);
     }
 
     /**
@@ -36,11 +38,14 @@ new #[Layout('layouts.guest')] #[Title('Masuk')] class extends Component
             return [];
         }
 
-        return array_map(fn (array $a) => [
-            'name' => $a['name'],
-            'email' => $a['email'],
-            'role' => $a['role']->label(),
-        ], UserSeeder::accounts());
+        return [
+            ['name' => UserSeeder::SUPER_ADMIN['name'], 'email' => UserSeeder::SUPER_ADMIN['email'], 'role' => 'Super Admin'],
+            ...array_map(fn (array $a) => [
+                'name' => $a['name'],
+                'email' => $a['email'],
+                'role' => $a['role']->label(),
+            ], UserSeeder::accounts()),
+        ];
     }
 }; ?>
 

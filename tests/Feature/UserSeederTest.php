@@ -23,7 +23,8 @@ class UserSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame(1, Business::count());
-        $this->assertSame(count(UserRole::cases()), User::count());
+        $this->assertSame(count(UserRole::cases()), User::where('is_super_admin', false)->count());
+        $this->assertTrue(User::where('email', UserSeeder::SUPER_ADMIN['email'])->sole()->isSuperAdmin());
 
         foreach (UserSeeder::accounts() as $account) {
             $user = User::where('email', $account['email'])->sole();
@@ -38,7 +39,7 @@ class UserSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(count(UserSeeder::accounts()), User::count());
+        $this->assertSame(count(UserSeeder::accounts()) + 1, User::count()); // + super admin
         $this->assertSame(1, Business::count());
         $this->assertSame(3, Outlet::count());
     }

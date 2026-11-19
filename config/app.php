@@ -67,6 +67,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Zona waktu tampilan panel super admin (lintas bisnis).
+    'admin_timezone' => env('ADMIN_TIMEZONE', 'Asia/Makassar'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
