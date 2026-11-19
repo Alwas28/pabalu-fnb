@@ -35,6 +35,10 @@ class GoogleAuthTest extends TestCase
         $this->assertGuest();
         $this->assertSame(0, User::count()); // akun baru dibuat setelah password dibuat
 
+        // Popup "berhasil terhubung" tampil sekali saja.
+        $this->get(route('register.google'))->assertOk()->assertSee('Berhasil terhubung dengan Gmail')->assertSee('rina@gmail.com');
+        $this->get(route('register.google'))->assertOk()->assertDontSee('Berhasil terhubung dengan Gmail');
+
         Volt::test('pages.auth.google-register')
             ->assertSet('name', 'Rina Pemilik')
             ->assertSet('email', 'rina@gmail.com')
@@ -60,6 +64,10 @@ class GoogleAuthTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertSame('google-123', $user->fresh()->google_id);
+
+        // Popup tetap muncul walau dashboard mengalihkan lagi ke onboarding (belum punya usaha).
+        $this->followingRedirects()->get(route('dashboard'))->assertOk()
+            ->assertSee('Berhasil terhubung dengan Gmail')->assertSee($user->name);
     }
 
     public function test_rejects_unverified_email_deactivated_account_and_other_linked_google(): void

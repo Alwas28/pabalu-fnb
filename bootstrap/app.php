@@ -28,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Akun yang dinonaktifkan super admin langsung keluar dari semua halaman web.
         $middleware->web(append: [EnsureAccountIsActive::class]);
+
+        // Di balik Cloudflare / load balancer: percayai skema (https), port & IP asli pengunjung.
+        // X-Forwarded-Host sengaja TIDAK dipercaya agar tautan reset password tidak bisa dibelokkan ke domain lain.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -25,6 +25,9 @@ class GoogleAuthController extends Controller
     /** Kunci sesi data Google yang menunggu pendaftaran diselesaikan. */
     public const SIGNUP_SESSION = 'google_signup';
 
+    /** Kunci sesi untuk popup "Berhasil terhubung dengan Gmail" (diambil sekali oleh x-google-connected-popup). */
+    public const CONNECTED_SESSION = 'google_connected';
+
     public function redirect(): SymfonyRedirect
     {
         return Socialite::driver('google')->redirect();
@@ -55,6 +58,7 @@ class GoogleAuthController extends Controller
                 'email' => $email,
                 'expires_at' => now()->addMinutes(30)->timestamp,
             ]);
+            session()->put(self::CONNECTED_SESSION, ['mode' => 'register', 'email' => $email]);
 
             return redirect()->route('register.google');
         }
@@ -74,6 +78,7 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, remember: true);
         session()->regenerate();
+        session()->put(self::CONNECTED_SESSION, ['mode' => 'login', 'email' => $user->email, 'name' => $user->name]);
 
         $home = $user->isSuperAdmin() ? route('admin.dashboard', absolute: false) : route('dashboard', absolute: false);
 

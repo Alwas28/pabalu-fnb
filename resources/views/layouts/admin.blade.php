@@ -5,6 +5,7 @@
     </head>
     <body class="antialiased">
         <div id="toast-container"></div>
+        <x-google-connected-popup />
 
         <!-- Overlay sidebar (mobile) -->
         <div id="ov" x-data x-cloak x-show="$store.ui.sidebarOpen" x-transition.opacity

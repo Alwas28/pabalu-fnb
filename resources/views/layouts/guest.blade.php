@@ -5,6 +5,7 @@
     </head>
     <body class="antialiased">
         <div id="toast-container"></div>
+        <x-google-connected-popup />
 
         <div class="min-h-screen grid lg:grid-cols-[1fr_minmax(0,560px)]">
             <!-- Panel brand -->
