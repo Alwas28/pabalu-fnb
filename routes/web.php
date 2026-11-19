@@ -73,6 +73,7 @@ Route::middleware('auth')->group(function () {
 
         // Keuangan & laporan
         Volt::route('finance', 'pages.finance.index')->middleware('can:finance.view')->name('finance.index');
+        Volt::route('expenses', 'pages.expenses.index')->middleware('can:finance.view')->name('expenses.index');
         Volt::route('reports', 'pages.reports.index')->middleware('can:reports.view')->name('reports.index');
 
         // Pelanggan

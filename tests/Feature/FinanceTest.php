@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
-use App\Models\Expense;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Outlet;
@@ -105,20 +104,43 @@ class FinanceTest extends TestCase
         $this->assertSame(1, $s['void_count']);
     }
 
-    public function test_finance_page_is_owner_only_and_records_expenses(): void
+    public function test_finance_and_expense_pages_are_owner_only(): void
     {
-        $this->actingAs(User::where('email', 'pabalu.manager@gmail.com')->sole())->get(route('finance.index'))->assertForbidden();
-        $this->actingAs($this->owner)->get(route('finance.index'))->assertOk()->assertSee('Laba Rugi');
-        $this->assertSame(7, $this->business->expenseCategories()->count()); // kategori bawaan
+        $manager = User::where('email', 'pabalu.manager@gmail.com')->sole();
+        $this->actingAs($manager)->get(route('finance.index'))->assertForbidden();
+        $this->actingAs($manager)->get(route('expenses.index'))->assertForbidden();
 
-        Volt::test('pages.finance.index')
-            ->call('openExpense')
+        $this->actingAs($this->owner)->get(route('finance.index'))->assertOk()->assertSee('Laba Rugi');
+        $this->actingAs($this->owner)->get(route('expenses.index'))->assertOk()->assertSee('Daftar Pengeluaran');
+        $this->assertSame(7, $this->business->expenseCategories()->count()); // kategori bawaan
+    }
+
+    public function test_expense_page_records_edits_and_deletes_expenses(): void
+    {
+        $this->actingAs($this->owner);
+
+        $page = Volt::test('pages.expenses.index')
+            ->dispatch('expense-open')
             ->set('newCategory', 'Kebersihan')
             ->set('amount', '50000')
             ->set('description', 'Sabun & tisu')
             ->call('saveExpense')
             ->assertHasNoErrors();
 
+        $expense = $this->business->expenses()->sole();
+        $this->assertSame('Kebersihan', $expense->category->name);
         $this->assertSame(50000, $this->metrics()->expenseTotal());
+
+        $page->call('editExpense', $expense->id)
+            ->assertSet('amount', '50000')
+            ->set('amount', '65000')
+            ->call('saveExpense')
+            ->assertHasNoErrors();
+
+        $this->assertSame(65000, $expense->fresh()->amount);
+        $this->assertSame(1, $this->business->expenses()->count());
+
+        $page->call('deleteExpense', $expense->id);
+        $this->assertSame(0, $this->metrics()->expenseTotal());
     }
 }

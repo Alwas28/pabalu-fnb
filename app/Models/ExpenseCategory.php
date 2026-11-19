@@ -12,6 +12,18 @@ class ExpenseCategory extends Model
     /** Kategori bawaan untuk bisnis baru. */
     public const DEFAULTS = ['Gaji & Upah', 'Sewa Tempat', 'Listrik & Air', 'Gas & Bahan Bakar', 'Pemasaran', 'Perawatan & Perbaikan', 'Lain-lain'];
 
+    /** Buat kategori bawaan bila bisnis belum punya kategori sama sekali. */
+    public static function ensureDefaultsFor(Business $business): void
+    {
+        if ($business->expenseCategories()->exists()) {
+            return;
+        }
+
+        foreach (self::DEFAULTS as $name) {
+            $business->expenseCategories()->create(['name' => $name]);
+        }
+    }
+
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);

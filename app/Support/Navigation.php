@@ -47,6 +47,7 @@ class Navigation
                 ['label' => 'Pelanggan', 'icon' => 'fa-users', 'route' => 'customers.index', 'permission' => Permission::ManageCustomers],
                 ['label' => 'Karyawan', 'icon' => 'fa-user-group', 'route' => 'employees.index', 'permission' => Permission::ManageEmployees],
                 ['label' => 'Keuangan', 'icon' => 'fa-wallet', 'route' => 'finance.index', 'permission' => Permission::ViewFinance],
+                ['label' => 'Pengeluaran', 'icon' => 'fa-money-bill-wave', 'route' => 'expenses.index', 'permission' => Permission::ViewFinance],
                 ['label' => 'Laporan', 'icon' => 'fa-chart-line', 'route' => 'reports.index', 'permission' => Permission::ViewReports],
             ],
             'Pengaturan' => [

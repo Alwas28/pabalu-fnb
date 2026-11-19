@@ -1,24 +1,18 @@
 <?php
 
 use App\Enums\PaymentMethod;
-use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Support\Money;
 use App\Support\Reports\FinanceMetrics;
 use App\Support\Reports\Period;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
-use Livewire\Attributes\On;
 use Livewire\Volt\Component;
-use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
 {
-    use WithPagination;
-
     #[Url]
     public string $from = '';
 
@@ -29,33 +23,11 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
     #[Url(as: 'outlet')]
     public string $outletId = '';
 
-    // Form pengeluaran
-    public string $expenseOutletId = '';
-    public string $categoryId = '';
-    public string $newCategory = '';
-    public string $amount = '';
-    public string $method = 'cash';
-    public string $spentAt = '';
-    public string $description = '';
-
     public function mount(): void
     {
-        $business = $this->business();
-
-        if (! $business->expenseCategories()->exists()) {
-            foreach (ExpenseCategory::DEFAULTS as $name) {
-                $business->expenseCategories()->create(['name' => $name]);
-            }
-        }
-
-        $period = Period::make($this->from ?: null, $this->to ?: null, $business->timezone);
+        $period = Period::make($this->from ?: null, $this->to ?: null, $this->business()->timezone);
         $this->from = $period->from->toDateString();
         $this->to = $period->to->toDateString();
-    }
-
-    public function updated(): void
-    {
-        $this->resetPage();
     }
 
     private function business()
@@ -78,84 +50,20 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
         return new FinanceMetrics($this->business()->id, $selected, Period::make($this->from, $this->to, $this->business()->timezone), $this->outletId === '');
     }
 
-    #[Computed]
-    public function expenseRows()
-    {
-        return $this->metrics->expenses()->with(['category', 'outlet', 'user'])->latest('spent_at')->latest('id')->paginate(15);
-    }
-
-    #[Computed]
-    public function categories()
-    {
-        return $this->business()->expenseCategories()->orderBy('name')->get();
-    }
-
+    /** Total pengeluaran per nama kategori, terbesar dulu. */
     #[Computed]
     public function expenseByCategory()
     {
-        return $this->metrics->expenses()->selectRaw('expense_category_id, sum(amount) as total')->groupBy('expense_category_id')
-            ->pluck('total', 'expense_category_id')->map(fn ($v) => (int) $v)->sortDesc();
-    }
+        $totals = $this->metrics->expenses()->selectRaw('expense_category_id, sum(amount) as total')->groupBy('expense_category_id')
+            ->pluck('total', 'expense_category_id');
+        $names = ExpenseCategory::whereIn('id', $totals->keys())->pluck('name', 'id');
 
-    #[On('expense-open')]
-    public function openExpense(): void
-    {
-        $this->resetValidation();
-        $this->reset('categoryId', 'newCategory', 'amount', 'method', 'description');
-        $this->expenseOutletId = $this->outletId;
-        $this->spentAt = now($this->business()->timezone)->toDateString();
-        $this->dispatch('open-modal', name: 'expense-form');
-    }
-
-    public function saveExpense(): void
-    {
-        $business = $this->business();
-        $outletIds = $this->outlets->pluck('id')->map(fn ($id) => (string) $id)->all();
-
-        $this->validate([
-            'expenseOutletId' => ['nullable', Rule::in($outletIds)],
-            'categoryId' => ['required_without:newCategory', 'nullable', Rule::exists('expense_categories', 'id')->where('business_id', $business->id)],
-            'newCategory' => ['nullable', 'string', 'max:80'],
-            'amount' => ['required', 'integer', 'min:1', 'max:10000000000'],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
-            'spentAt' => ['required', 'date'],
-            'description' => ['required', 'string', 'max:255'],
-        ], ['categoryId.required_without' => 'Pilih kategori atau tulis kategori baru.'],
-            ['amount' => 'nominal', 'spentAt' => 'tanggal', 'description' => 'keterangan']);
-
-        $category = $this->newCategory !== ''
-            ? $business->expenseCategories()->firstOrCreate(['name' => trim($this->newCategory)])
-            : $business->expenseCategories()->findOrFail($this->categoryId);
-
-        $business->expenses()->create([
-            'outlet_id' => $this->expenseOutletId ?: null,
-            'expense_category_id' => $category->id,
-            'amount' => (int) $this->amount,
-            'method' => $this->method,
-            'spent_at' => $this->spentAt,
-            'description' => $this->description,
-            'user_id' => auth()->id(),
-        ]);
-
-        $this->dispatch('close-modal', name: 'expense-form');
-        $this->dispatch('toast', type: 'success', message: 'Pengeluaran dicatat');
-        unset($this->metrics, $this->expenseRows, $this->categories, $this->expenseByCategory);
-    }
-
-    public function deleteExpense(int $id): void
-    {
-        $expense = Expense::where('business_id', $this->business()->id)->find($id);
-        abort_unless($expense, 404);
-        abort_unless($expense->outlet_id === null || $this->outlets->contains('id', $expense->outlet_id), 403);
-
-        $expense->delete();
-        $this->dispatch('toast', type: 'success', message: 'Pengeluaran dihapus');
-        unset($this->metrics, $this->expenseRows, $this->expenseByCategory);
+        return $totals->mapWithKeys(fn ($total, $id) => [$names[$id] ?? '—' => (int) $total])->sortDesc();
     }
 }; ?>
 
 <x-slot name="actions">
-    <button type="button" x-data x-on:click="Livewire.dispatch('expense-open')" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Catat Pengeluaran</span></button>
+    <a href="{{ route('expenses.index') }}" wire:navigate class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-money-bill-wave"></i><span class="hidden sm:inline">Pengeluaran</span></a>
 </x-slot>
 
 <div class="flex flex-col gap-5">
@@ -163,7 +71,6 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
         $s = $this->metrics->summary();
         $cash = $this->metrics->cashFlow();
         $methods = $this->metrics->paymentsByMethod();
-        $categories = $this->categories->keyBy('id');
     @endphp
 
     <div class="flex flex-wrap items-end gap-2">
@@ -232,104 +139,17 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
         </div>
     </div>
 
-    <div class="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div class="card overflow-hidden animate-fadeUp">
-            <div class="card-header"><div class="card-title"><i class="fa-solid fa-receipt"></i>Pengeluaran Operasional</div></div>
-            <div class="overflow-x-auto">
-                <table class="tbl">
-                    <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Outlet</th><th>Metode</th><th class="text-right">Nominal</th><th></th></tr></thead>
-                    <tbody>
-                        @forelse ($this->expenseRows as $expense)
-                            <tr wire:key="ex-{{ $expense->id }}">
-                                <td class="whitespace-nowrap">{{ $expense->spent_at->format('d/m/Y') }}</td>
-                                <td>{{ $expense->category->name }}</td>
-                                <td class="!whitespace-normal">{{ $expense->description }}<div class="text-[11px] text-pb-muted">{{ $expense->user?->name }}</div></td>
-                                <td>{{ $expense->outlet?->name ?? 'Bersama' }}</td>
-                                <td>{{ $expense->method->label() }}</td>
-                                <td class="text-right font-semibold whitespace-nowrap">{{ Money::format($expense->amount) }}</td>
-                                <td class="text-right"><button type="button" wire:click="deleteExpense({{ $expense->id }})" wire:confirm="Hapus pengeluaran ini?" class="btn-ghost" style="color:#f87171" aria-label="Hapus"><i class="fa-solid fa-trash"></i></button></td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="7" class="text-center !py-8">Belum ada pengeluaran pada periode ini.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if ($this->expenseRows->hasPages())
-                <div class="px-5 py-3 border-t border-pb-border">{{ $this->expenseRows->links() }}</div>
-            @endif
+    <div class="card animate-fadeUp">
+        <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-chart-pie"></i>Pengeluaran per Kategori</div>
+            <a href="{{ route('expenses.index', array_filter(['from' => $from, 'to' => $to, 'outlet' => $outletId])) }}" wire:navigate class="btn-ghost font-semibold">Kelola Pengeluaran <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
         </div>
-
-        <div class="card animate-fadeUp d1">
-            <div class="card-header"><div class="card-title"><i class="fa-solid fa-chart-pie"></i>Per Kategori</div></div>
-            <div class="card-body flex flex-col gap-2 text-[13px]">
-                @forelse ($this->expenseByCategory as $categoryId => $total)
-                    <div class="flex justify-between"><span class="text-pb-sub">{{ $categories[$categoryId]->name ?? '—' }}</span><span class="font-semibold">{{ Money::format($total) }}</span></div>
-                @empty
-                    <div class="text-pb-muted">—</div>
-                @endforelse
-            </div>
+        <div class="card-body grid gap-x-8 gap-y-2 text-[13px] sm:grid-cols-2">
+            @forelse ($this->expenseByCategory as $name => $total)
+                <div class="flex justify-between"><span class="text-pb-sub">{{ $name }}</span><span class="font-semibold">{{ Money::format($total) }}</span></div>
+            @empty
+                <div class="text-pb-muted">Belum ada pengeluaran pada periode ini.</div>
+            @endforelse
         </div>
     </div>
-
-    <x-modal name="expense-form" maxWidth="md" focusable>
-        <form wire:submit="saveExpense">
-            <div class="px-6 py-5 border-b border-pb-border">
-                <div class="font-display text-base font-bold text-pb-text">Catat Pengeluaran</div>
-                <div class="text-xs text-pb-muted mt-px">Pembelian bahan dicatat lewat modul Pembelian, bukan di sini.</div>
-            </div>
-            <div class="px-6 py-5 grid grid-cols-2 gap-4">
-                <div>
-                    <x-input-label for="categoryId" value="Kategori" />
-                    <select wire:model="categoryId" id="categoryId" class="f-input">
-                        <option value="">— Pilih —</option>
-                        @foreach ($this->categories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('categoryId')" class="mt-1.5" />
-                </div>
-                <div>
-                    <x-input-label for="newCategory" value="… atau kategori baru" />
-                    <x-text-input wire:model="newCategory" id="newCategory" />
-                </div>
-                <div>
-                    <x-input-label for="amount" value="Nominal (Rp)" />
-                    <x-text-input wire:model="amount" id="amount" type="number" min="1" required />
-                    <x-input-error :messages="$errors->get('amount')" class="mt-1.5" />
-                </div>
-                <div>
-                    <x-input-label for="spentAt" value="Tanggal" />
-                    <x-text-input wire:model="spentAt" id="spentAt" type="date" required />
-                    <x-input-error :messages="$errors->get('spentAt')" class="mt-1.5" />
-                </div>
-                <div>
-                    <x-input-label for="expenseOutletId" value="Outlet" />
-                    <select wire:model="expenseOutletId" id="expenseOutletId" class="f-input">
-                        <option value="">Biaya bersama</option>
-                        @foreach ($this->outlets as $outlet)
-                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <x-input-label for="method" value="Dibayar via" />
-                    <select wire:model="method" id="method" class="f-input">
-                        @foreach (PaymentMethod::cases() as $m)
-                            <option value="{{ $m->value }}">{{ $m->label() }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-span-2">
-                    <x-input-label for="description" value="Keterangan" />
-                    <x-text-input wire:model="description" id="description" placeholder="mis. Listrik bulan November" required />
-                    <x-input-error :messages="$errors->get('description')" class="mt-1.5" />
-                </div>
-            </div>
-            <div class="px-6 py-4 border-t border-pb-border flex justify-end gap-2.5">
-                <x-secondary-button x-on:click="$dispatch('close')">Batal</x-secondary-button>
-                <x-primary-button wire:loading.attr="disabled" wire:target="saveExpense"><i class="fa-solid fa-check"></i>Simpan</x-primary-button>
-            </div>
-        </form>
-    </x-modal>
 </div>
