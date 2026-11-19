@@ -11,6 +11,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -96,6 +97,7 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
             ->pluck('total', 'expense_category_id')->map(fn ($v) => (int) $v)->sortDesc();
     }
 
+    #[On('expense-open')]
     public function openExpense(): void
     {
         $this->resetValidation();
@@ -153,7 +155,7 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
 }; ?>
 
 <x-slot name="actions">
-    <button type="button" x-data x-on:click="$wire.openExpense()" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Catat Pengeluaran</span></button>
+    <button type="button" x-data x-on:click="Livewire.dispatch('expense-open')" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Catat Pengeluaran</span></button>
 </x-slot>
 
 <div class="flex flex-col gap-5">

@@ -215,6 +215,21 @@ class InventoryTest extends TestCase
         $this->actingAs($this->kasir)->get(route('recipes.index'))->assertForbidden();
     }
 
+    /** Tombol header berada di luar root komponen, jadi modal dibuka lewat event Livewire. */
+    public function test_header_events_open_stock_modals(): void
+    {
+        $this->actingAs($this->manager);
+
+        Volt::test('pages.inventory.index')
+            ->dispatch('stock-transfer-open')
+            ->assertSet('transferItems', [['ingredient_id' => '', 'quantity' => '']])
+            ->assertDispatched('open-modal', name: 'stock-transfer')
+            ->set('action', 'adjust')
+            ->dispatch('stock-action-open', action: 'waste')
+            ->assertSet('action', 'waste')
+            ->assertDispatched('open-modal', name: 'stock-action');
+    }
+
     public function test_recipe_editor_saves_rows_and_base_unit_is_locked_after_movements(): void
     {
         $this->actingAs($this->manager);

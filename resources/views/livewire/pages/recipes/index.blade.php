@@ -13,6 +13,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] #[Title('Resep & Bahan')] class extends Component
@@ -89,6 +90,7 @@ new #[Layout('layouts.app')] #[Title('Resep & Bahan')] class extends Component
 
     /* ─────────────── Bahan baku ─────────────── */
 
+    #[On('ingredient-create')]
     public function createIngredient(): void
     {
         $this->resetIngredientForm();
@@ -278,7 +280,7 @@ new #[Layout('layouts.app')] #[Title('Resep & Bahan')] class extends Component
 }; ?>
 
 <x-slot name="actions">
-    <button type="button" x-data x-on:click="$wire.createIngredient()" class="btn btn-primary !px-3 sm:!px-[18px]">
+    <button type="button" x-data x-on:click="Livewire.dispatch('ingredient-create')" class="btn btn-primary !px-3 sm:!px-[18px]">
         <i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Tambah Bahan</span>
     </button>
 </x-slot>

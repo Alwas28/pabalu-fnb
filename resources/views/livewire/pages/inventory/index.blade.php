@@ -10,6 +10,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -112,6 +113,7 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
         $this->resetPage();
     }
 
+    #[On('stock-action-open')]
     public function openAction(string $action, ?int $ingredientId = null): void
     {
         $this->resetValidation();
@@ -135,6 +137,7 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
         unset($this->rows, $this->movements);
     }
 
+    #[On('stock-transfer-open')]
     public function openTransfer(): void
     {
         $this->resetValidation();
@@ -170,8 +173,8 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
 
 <x-slot name="actions">
     <a href="{{ route('inventory.counts.index') }}" wire:navigate class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-clipboard-check"></i><span class="hidden sm:inline">Stok Opname</span></a>
-    <button type="button" x-data x-on:click="$wire.openTransfer()" class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-truck-ramp-box"></i><span class="hidden sm:inline">Transfer</span></button>
-    <button type="button" x-data x-on:click="$wire.openAction('waste')" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Catat Waste</span></button>
+    <button type="button" x-data x-on:click="Livewire.dispatch('stock-transfer-open')" class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-truck-ramp-box"></i><span class="hidden sm:inline">Transfer</span></button>
+    <button type="button" x-data x-on:click="Livewire.dispatch('stock-action-open', { action: 'waste' })" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Catat Waste</span></button>
 </x-slot>
 
 <div class="flex flex-col gap-5">
