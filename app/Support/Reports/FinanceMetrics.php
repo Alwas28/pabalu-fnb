@@ -33,12 +33,14 @@ class FinanceMetrics
     /**
      * @param  list<int>  $outletIds
      * @param  bool  $includeShared  sertakan pengeluaran tanpa outlet (biaya bersama)
+     * @param  int|null  $cashierId  batasi penjualan pada pesanan yang dibuat kasir ini (dashboard aplikasi kasir)
      */
     public function __construct(
         private int $businessId,
         private array $outletIds,
         private Period $period,
         private bool $includeShared = true,
+        private ?int $cashierId = null,
     ) {}
 
     /** Transaksi sah dalam periode. */
@@ -49,7 +51,8 @@ class FinanceMetrics
             ->whereIn('outlet_id', $this->outletIds)
             ->whereBetween('placed_at', $this->period->utcRange())
             ->where('status', '!=', OrderStatus::Cancelled->value)
-            ->where('payment_status', '!=', PaymentStatus::Pending->value);
+            ->where('payment_status', '!=', PaymentStatus::Pending->value)
+            ->when($this->cashierId !== null, fn ($q) => $q->where('cashier_id', $this->cashierId));
     }
 
     /**
@@ -102,6 +105,7 @@ class FinanceMetrics
             ->whereBetween('placed_at', $this->period->utcRange())
             ->where('status', OrderStatus::Cancelled->value)
             ->where('paid_amount', '>', 0)
+            ->when($this->cashierId !== null, fn ($q) => $q->where('cashier_id', $this->cashierId))
             ->selectRaw('count(*) as c, coalesce(sum(paid_amount), 0) as v')
             ->first();
 
@@ -159,7 +163,8 @@ class FinanceMetrics
     public function paymentsByMethod(): array
     {
         [$from, $to] = $this->period->utcRange();
-        $orderScope = fn ($q) => $q->where('business_id', $this->businessId)->whereIn('outlet_id', $this->outletIds);
+        $orderScope = fn ($q) => $q->where('business_id', $this->businessId)->whereIn('outlet_id', $this->outletIds)
+            ->when($this->cashierId !== null, fn ($q) => $q->where('cashier_id', $this->cashierId));
 
         $received = OrderPayment::whereHas('order', $orderScope)->whereBetween('paid_at', [$from, $to])
             ->selectRaw('method, sum(amount) as v')->groupBy('method')->pluck('v', 'method');

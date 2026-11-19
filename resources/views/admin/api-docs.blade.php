@@ -383,6 +383,29 @@ pajak termasuk harga (prices_include_tax = true):
         <div class="ep-head"><span class="method get">GET</span><span class="path">/orders/{order}</span></div>
         <p>Objek pesanan lengkap.</p>
       </div>
+
+      <div class="ep">
+        <div class="ep-head"><span class="method get">GET</span><span class="path">/outlets/{outlet}/summary</span></div>
+        <p>Ringkasan penjualan outlet untuk dashboard aplikasi. Definisinya sama dengan halaman Keuangan web: hanya pesanan lunas yang tidak dibatalkan. Biaya bahan dan laba tidak dikirim.</p>
+        <div class="tbl-wrap"><table><tbody>
+          <tr><td>date</td><td>Satu hari, <code>YYYY-MM-DD</code> zona waktu bisnis. Bawaan: hari ini.</td></tr>
+          <tr><td>from, to</td><td>Rentang tanggal (keduanya wajib bila dipakai), maksimal 31 hari.</td></tr>
+          <tr><td>scope</td><td><code>outlet</code> (bawaan): seluruh outlet. <code>me</code>: hanya pesanan yang dibuat kasir yang sedang login, termasuk open bill-nya.</td></tr>
+        </tbody></table></div>
+<pre><code>{ "data": {
+  "period": { "from": "2026-11-19", "to": "2026-11-19", "timezone": "Asia/Makassar" },
+  "scope": "outlet",
+  "summary": { "orders": 12, "gross_sales": 310000, "discount": 5000, "refunds": 0, "net_sales": 305000,
+               "service_charge": 15250, "tax": 32025, "total_billed": 352275, "average_order": 29356,
+               "void_count": 1, "void_amount": 27720 },
+  "payments_by_method": [ { "method": "cash", "received": 200000, "refunded": 0, "net": 200000 } ],
+  "series_unit": "hour",
+  "series": [ { "label": "08:00", "orders": 3, "total": 81720 }, … ],
+  "top_items": [ { "name": "Kopi Susu Gula Aren", "quantity": 9, "revenue": 198000 } ],
+  "open_bills": { "count": 2, "total": 84000 }
+} }</code></pre>
+        <p><code>series</code> berisi 24 jam (<code>series_unit: "hour"</code>) untuk satu hari, atau per tanggal (<code>"day"</code>, dengan <code>net_sales</code>) untuk rentang.</p>
+      </div>
     </section>
 
     <section id="open-bill">

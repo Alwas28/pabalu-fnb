@@ -48,6 +48,37 @@ class PosOrderApiTest extends TestCase
         ];
     }
 
+    public function test_summary_endpoint_reports_outlet_sales_for_dashboard(): void
+    {
+        $this->actingAsUser('pabalu.kasir@gmail.com');
+        $first = $this->postJson("/api/v1/outlets/{$this->kendari->id}/orders", $this->payload())->assertCreated()->json('data');
+        $this->postJson("/api/v1/outlets/{$this->kendari->id}/orders", $this->payload(['client_reference' => 'tablet-1-000002']))->assertCreated();
+
+        $data = $this->getJson("/api/v1/outlets/{$this->kendari->id}/summary")->assertOk()->json('data');
+
+        $this->assertSame(2, $data['summary']['orders']);
+        $this->assertSame($first['total'] * 2, $data['summary']['total_billed']);
+        $this->assertArrayNotHasKey('gross_profit', $data['summary']); // laba tidak untuk kasir
+        $this->assertSame('cash', $data['payments_by_method'][0]['method']);
+        $this->assertSame('hour', $data['series_unit']);
+        $this->assertCount(24, $data['series']);
+        $this->assertSame(4, $data['top_items'][0]['quantity']);
+
+        // scope=me: kasir lain di outlet yang sama tidak ikut terhitung.
+        $this->actingAsUser('pabalu.manager@gmail.com');
+        app(ShiftManager::class)->open(User::where('email', 'pabalu.manager@gmail.com')->sole(), $this->kendari, ['opening_cash' => 0]);
+        $this->postJson("/api/v1/outlets/{$this->kendari->id}/orders", $this->payload(['client_reference' => 'tablet-2-000001']))->assertCreated();
+        $this->assertSame(3, $this->getJson("/api/v1/outlets/{$this->kendari->id}/summary")->json('data.summary.orders'));
+        $mine = $this->getJson("/api/v1/outlets/{$this->kendari->id}/summary?scope=me")->assertOk()->json('data');
+        $this->assertSame('me', $mine['scope']);
+        $this->assertSame(1, $mine['summary']['orders']);
+        $this->assertSame($first['total'], $mine['payments_by_method'][0]['net']);
+
+        $this->actingAsUser('pabalu.kasir@gmail.com');
+        $this->getJson("/api/v1/outlets/{$this->kendari->id}/summary?from=2026-01-01&to=2026-03-01")->assertUnprocessable();
+        $this->getJson('/api/v1/outlets/'.Outlet::where('code', 'BAU')->value('id').'/summary')->assertForbidden();
+    }
+
     public function test_menu_endpoint_returns_outlet_prices_and_availability(): void
     {
         $this->actingAsUser('pabalu.supervisor@gmail.com');

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\OfflineController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OutletController;
 use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\SummaryController;
 use App\Http\Controllers\Api\V1\TableController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::get('outlets/{outlet}/menu', [MenuController::class, 'index'])->name('outlets.menu');
         Route::get('outlets/{outlet}/orders', [OrderController::class, 'index'])->name('outlets.orders.index');
+        Route::get('outlets/{outlet}/summary', SummaryController::class)->name('outlets.summary');
         Route::post('outlets/{outlet}/orders', [OrderController::class, 'store'])->name('outlets.orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::get('orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
