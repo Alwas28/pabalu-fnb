@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    /*
+     * Pengiriman event ke Analytics Platform / Central Dashboard (outbox).
+     * Kosongkan endpoint untuk mematikan: event tidak dicatat & tidak dikirim.
+     */
+    'analytics' => [
+        'endpoint' => env('ANALYTICS_ENDPOINT'),
+        'token' => env('ANALYTICS_TOKEN'),
+        'signing_secret' => env('ANALYTICS_SIGNING_SECRET'),
+        'batch_size' => (int) env('ANALYTICS_BATCH_SIZE', 100),
+        'timeout' => (int) env('ANALYTICS_TIMEOUT', 15),
+    ],
+
 ];

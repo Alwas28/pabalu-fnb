@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
+use App\Observers\OrderRefundAnalyticsObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Uang yang dikembalikan ke pelanggan. Tunai dengan cash_shift_id mengurangi kas laci shift itu. */
+#[ObservedBy([OrderRefundAnalyticsObserver::class])]
 class OrderRefund extends Model
 {
     protected $guarded = ['id'];

@@ -7,6 +7,8 @@ use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
+use App\Observers\OrderAnalyticsObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * (PlaceOrder, AddOrderItems, SettleOrder, CancelOrder, MoveOrderTable) agar harga,
  * pajak, pembayaran, shift dan nomor order selalu dihitung di server.
  */
+#[ObservedBy([OrderAnalyticsObserver::class])]
 class Order extends Model
 {
     protected $guarded = ['id'];

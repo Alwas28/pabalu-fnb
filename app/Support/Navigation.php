@@ -41,13 +41,14 @@ class Navigation
             ],
             'Persediaan' => [
                 ['label' => 'Stok Bahan', 'icon' => 'fa-warehouse', 'route' => 'inventory.index', 'active' => 'inventory.*', 'permission' => Permission::ManageInventory],
-                ['label' => 'Pembelian', 'icon' => 'fa-truck', 'route' => 'purchasing.index', 'active' => 'purchasing.*', 'permission' => Permission::ManagePurchasing],
+                ['label' => 'Pembelian', 'icon' => 'fa-truck', 'route' => 'purchasing.index', 'active' => ['purchasing.index', 'purchasing.suppliers', 'purchasing.create', 'purchasing.edit', 'purchasing.show'], 'permission' => Permission::ManagePurchasing],
+                ['label' => 'Belanja Cepat', 'icon' => 'fa-basket-shopping', 'route' => 'purchasing.quick', 'permission' => Permission::ManagePurchasing],
             ],
             'Bisnis' => [
                 ['label' => 'Pelanggan', 'icon' => 'fa-users', 'route' => 'customers.index', 'permission' => Permission::ManageCustomers],
                 ['label' => 'Karyawan', 'icon' => 'fa-user-group', 'route' => 'employees.index', 'permission' => Permission::ManageEmployees],
                 ['label' => 'Keuangan', 'icon' => 'fa-wallet', 'route' => 'finance.index', 'permission' => Permission::ViewFinance],
-                ['label' => 'Pengeluaran', 'icon' => 'fa-money-bill-wave', 'route' => 'expenses.index', 'permission' => Permission::ViewFinance],
+                ['label' => 'Pengeluaran', 'icon' => 'fa-money-bill-wave', 'route' => 'expenses.index', 'permission' => Permission::RecordExpenses],
                 ['label' => 'Laporan', 'icon' => 'fa-chart-line', 'route' => 'reports.index', 'permission' => Permission::ViewReports],
             ],
             'Pengaturan' => [

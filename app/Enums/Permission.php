@@ -30,6 +30,7 @@ enum Permission: string
     case ManageCustomers = 'customers.manage';
     case ManageEmployees = 'employees.manage';
     case ViewFinance = 'finance.view';
+    case RecordExpenses = 'expenses.record';
     case ViewReports = 'reports.view';
     case ManageSettings = 'settings.manage';
     case ManagePaymentGateway = 'payment-gateway.manage';
@@ -54,6 +55,7 @@ enum Permission: string
             self::ManageCustomers => 'Mengelola pelanggan',
             self::ManageEmployees => 'Mengelola karyawan & pengguna',
             self::ViewFinance => 'Melihat keuangan',
+            self::RecordExpenses => 'Mencatat pengeluaran outlet',
             self::ViewReports => 'Melihat laporan',
             self::ManageSettings => 'Mengelola bisnis & outlet',
             self::ManagePaymentGateway => 'Mengatur payment gateway',
@@ -69,7 +71,7 @@ enum Permission: string
             self::UsePos, self::ViewOrders, self::ApproveTransactions, self::ViewKitchen, self::ManageTables, self::ManageShifts => 'Penjualan & operasional',
             self::ManageMenu, self::ManageRecipes => 'Menu & resep',
             self::ManageInventory, self::ManagePurchasing => 'Persediaan & pembelian',
-            self::ManageCustomers, self::ManageEmployees, self::ViewFinance, self::ViewReports => 'Bisnis',
+            self::ManageCustomers, self::ManageEmployees, self::ViewFinance, self::RecordExpenses, self::ViewReports => 'Bisnis',
             self::ManageSettings, self::ManagePaymentGateway, self::ApproveRefunds, self::ManageRoles => 'Pengaturan & khusus owner',
         };
     }

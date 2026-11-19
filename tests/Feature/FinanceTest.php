@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\ExpenseCategory;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Outlet;
@@ -104,16 +105,46 @@ class FinanceTest extends TestCase
         $this->assertSame(1, $s['void_count']);
     }
 
-    public function test_finance_and_expense_pages_are_owner_only(): void
+    public function test_finance_is_owner_only_while_expenses_need_record_permission(): void
     {
         $manager = User::where('email', 'pabalu.manager@gmail.com')->sole();
         $this->actingAs($manager)->get(route('finance.index'))->assertForbidden();
-        $this->actingAs($manager)->get(route('expenses.index'))->assertForbidden();
+        $this->actingAs($manager)->get(route('expenses.index'))->assertOk();
+        $this->actingAs(User::where('email', 'pabalu.kasir@gmail.com')->sole())->get(route('expenses.index'))->assertForbidden();
 
         $this->actingAs($this->owner)->get(route('finance.index'))->assertOk()->assertSee('Laba Rugi');
         $this->actingAs($this->owner)->get(route('expenses.index'))->assertOk()->assertSee('Daftar Pengeluaran');
         $this->assertSame(8, $this->business->expenseCategories()->whereNotNull('template_id')->count()); // kategori bawaan
         $this->assertTrue($this->business->expenseCategories()->where('name', 'Bahan Baku')->exists());
+    }
+
+    public function test_manager_records_only_outlet_expenses_without_seeing_shared_costs(): void
+    {
+        ExpenseCategory::syncTemplatesFor($this->business);
+        $shared = $this->business->expenses()->create([
+            'expense_category_id' => $this->business->expenseCategories()->where('name', 'Sewa Tempat')->value('id'),
+            'amount' => 3000000, 'method' => 'cash', 'spent_at' => now()->toDateString(), 'description' => 'Sewa kantor pusat', 'user_id' => $this->owner->id,
+        ]);
+
+        $manager = User::where('email', 'pabalu.manager@gmail.com')->sole();
+        $this->actingAs($manager);
+
+        $page = Volt::test('pages.expenses.index')
+            ->assertDontSee('Sewa kantor pusat')
+            ->dispatch('expense-open')
+            ->assertSet('expenseOutletId', (string) $this->kendari->id)
+            ->set('categoryId', (string) $this->business->expenseCategories()->where('name', 'Listrik & Air')->value('id'))
+            ->set('amount', '250000')
+            ->set('description', 'Token listrik');
+
+        $page->set('expenseOutletId', '')->call('saveExpense')->assertHasErrors('expenseOutletId');
+        $page->set('newCategory', 'Kategori Baru')->set('expenseOutletId', (string) $this->kendari->id)
+            ->call('saveExpense')->assertHasErrors('newCategory');
+        $page->set('newCategory', '')->call('saveExpense')->assertHasNoErrors();
+
+        $this->assertSame($this->kendari->id, $this->business->expenses()->where('description', 'Token listrik')->sole()->outlet_id);
+
+        $page->call('deleteExpense', $shared->id)->assertForbidden();
     }
 
     public function test_expense_page_records_edits_and_deletes_expenses(): void

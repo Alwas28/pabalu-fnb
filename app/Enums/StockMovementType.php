@@ -7,6 +7,7 @@ enum StockMovementType: string
 {
     case PurchaseReceipt = 'purchase_receipt';
     case PurchaseReturn = 'purchase_return';
+    case QuickPurchase = 'quick_purchase';
     case RecipeUsage = 'recipe_usage';
     case RecipeReturn = 'recipe_return';
     case Waste = 'waste';
@@ -20,6 +21,7 @@ enum StockMovementType: string
         return match ($this) {
             self::PurchaseReceipt => 'Penerimaan pembelian',
             self::PurchaseReturn => 'Retur pembelian',
+            self::QuickPurchase => 'Belanja cepat',
             self::RecipeUsage => 'Pemakaian resep',
             self::RecipeReturn => 'Pengembalian (void)',
             self::Waste => 'Waste / rusak',
@@ -33,7 +35,7 @@ enum StockMovementType: string
     public function badge(): string
     {
         return match ($this) {
-            self::PurchaseReceipt, self::TransferIn, self::RecipeReturn => 'badge-green',
+            self::PurchaseReceipt, self::QuickPurchase, self::TransferIn, self::RecipeReturn => 'badge-green',
             self::RecipeUsage => 'badge-blue',
             self::Waste, self::PurchaseReturn => 'badge-red',
             self::TransferOut => 'badge-amber',

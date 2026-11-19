@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PaymentMethod;
+use App\Enums\Permission;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Support\Money;
@@ -69,6 +70,16 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
         return auth()->user()->accessibleOutlets();
     }
 
+    /**
+     * Pemegang izin Keuangan (owner) mengelola seluruh bisnis: biaya bersama & kategori baru.
+     * Pengguna lain (mis. manajer) hanya mencatat pengeluaran outlet yang ia pegang.
+     */
+    #[Computed]
+    public function managesWholeBusiness(): bool
+    {
+        return auth()->user()->hasPermission(Permission::ViewFinance);
+    }
+
     /** Semua kategori bisnis, termasuk bawaan yang sudah dinonaktifkan (untuk filter & riwayat). */
     #[Computed]
     public function categories()
@@ -96,7 +107,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
         $ids = $this->outlets->pluck('id');
         $selected = $ids->contains((int) $this->outletId) ? [(int) $this->outletId] : $ids->all();
 
-        return (new FinanceMetrics($this->business()->id, $selected, Period::make($this->from, $this->to, $this->business()->timezone), $this->outletId === ''))
+        return (new FinanceMetrics($this->business()->id, $selected, Period::make($this->from, $this->to, $this->business()->timezone), $this->outletId === '' && $this->managesWholeBusiness))
             ->expenses();
     }
 
@@ -129,7 +140,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
     {
         $expense = Expense::where('business_id', $this->business()->id)->find($id);
         abort_unless($expense, 404);
-        abort_unless($expense->outlet_id === null || $this->outlets->contains('id', $expense->outlet_id), 403);
+        abort_unless($expense->outlet_id === null ? $this->managesWholeBusiness : $this->outlets->contains('id', $expense->outlet_id), 403);
 
         return $expense;
     }
@@ -139,7 +150,9 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
     {
         $this->resetValidation();
         $this->reset('editingId', 'categoryId', 'newCategory', 'amount', 'method', 'description');
-        $this->expenseOutletId = $this->outletId;
+        $this->expenseOutletId = $this->outletId !== '' || $this->managesWholeBusiness
+            ? $this->outletId
+            : (string) (auth()->user()->currentOutlet()?->id ?? $this->outlets->first()?->id ?? '');
         $this->spentAt = now($this->business()->timezone)->toDateString();
         $this->dispatch('open-modal', name: 'expense-form');
     }
@@ -167,15 +180,15 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
         $expense = $this->editingId ? $this->findExpense($this->editingId) : null;
 
         $this->validate([
-            'expenseOutletId' => ['nullable', Rule::in($outletIds)],
+            'expenseOutletId' => [$this->managesWholeBusiness ? 'nullable' : 'required', Rule::in($outletIds)],
             'categoryId' => ['required_without:newCategory', 'nullable', Rule::in($this->formCategories->pluck('id')->map(fn ($id) => (string) $id)->all())],
-            'newCategory' => ['nullable', 'string', 'max:80'],
+            'newCategory' => [$this->managesWholeBusiness ? 'nullable' : 'prohibited', 'string', 'max:80'],
             'amount' => ['required', 'integer', 'min:1', 'max:10000000000'],
             'method' => ['required', Rule::enum(PaymentMethod::class)],
             'spentAt' => ['required', 'date'],
             'description' => ['required', 'string', 'max:255'],
         ], ['categoryId.required_without' => 'Pilih kategori atau tulis kategori baru.'],
-            ['amount' => 'nominal', 'spentAt' => 'tanggal', 'description' => 'keterangan']);
+            ['amount' => 'nominal', 'spentAt' => 'tanggal', 'description' => 'keterangan', 'expenseOutletId' => 'outlet']);
 
         $category = trim($this->newCategory) !== ''
             ? $business->expenseCategories()->firstOrCreate(['name' => trim($this->newCategory)])
@@ -307,7 +320,7 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
                 <div class="text-xs text-pb-muted mt-px">Belanja lewat Purchase Order sudah tercatat di modul Pembelian, jangan dicatat ulang di sini.</div>
             </div>
             <div class="px-6 py-5 grid grid-cols-2 gap-4">
-                <div>
+                <div @class(['col-span-2' => ! $this->managesWholeBusiness])>
                     <x-input-label for="categoryId" value="Kategori" />
                     <select wire:model="categoryId" id="categoryId" class="f-input">
                         <option value="">— Pilih —</option>
@@ -317,10 +330,12 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
                     </select>
                     <x-input-error :messages="$errors->get('categoryId')" class="mt-1.5" />
                 </div>
-                <div>
-                    <x-input-label for="newCategory" value="… atau kategori baru" />
-                    <x-text-input wire:model="newCategory" id="newCategory" />
-                </div>
+                @if ($this->managesWholeBusiness)
+                    <div>
+                        <x-input-label for="newCategory" value="… atau kategori baru" />
+                        <x-text-input wire:model="newCategory" id="newCategory" />
+                    </div>
+                @endif
                 <div>
                     <x-input-label for="amount" value="Nominal (Rp)" />
                     <x-text-input wire:model="amount" id="amount" type="number" min="1" required />
@@ -334,11 +349,14 @@ new #[Layout('layouts.app')] #[Title('Pengeluaran')] class extends Component
                 <div>
                     <x-input-label for="expenseOutletId" value="Outlet" />
                     <select wire:model="expenseOutletId" id="expenseOutletId" class="f-input">
-                        <option value="">Biaya bersama</option>
+                        @if ($this->managesWholeBusiness)
+                            <option value="">Biaya bersama</option>
+                        @endif
                         @foreach ($this->outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
                     </select>
+                    <x-input-error :messages="$errors->get('expenseOutletId')" class="mt-1.5" />
                 </div>
                 <div>
                     <x-input-label for="method" value="Dibayar via" />

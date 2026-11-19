@@ -77,6 +77,11 @@ class Business extends Model
         return $this->hasMany(Customer::class)->orderBy('name');
     }
 
+    public function quickPurchases(): HasMany
+    {
+        return $this->hasMany(QuickPurchase::class);
+    }
+
     public function expenseCategories(): HasMany
     {
         return $this->hasMany(ExpenseCategory::class);

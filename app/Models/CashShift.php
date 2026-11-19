@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ShiftStatus;
+use App\Observers\CashShiftAnalyticsObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Shift kasir di satu outlet. Dibuka & ditutup lewat App\Support\Pos\ShiftManager.
  * Satu kasir hanya boleh memiliki satu shift berjalan per outlet.
  */
+#[ObservedBy([CashShiftAnalyticsObserver::class])]
 class CashShift extends Model
 {
     protected $guarded = ['id'];

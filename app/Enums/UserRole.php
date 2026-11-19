@@ -67,6 +67,7 @@ enum UserRole: string
                 Permission::ManageInventory,
                 Permission::ManagePurchasing,
                 Permission::ManageCustomers,
+                Permission::RecordExpenses,
                 Permission::ViewReports,
             ],
 

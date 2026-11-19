@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
+use App\Observers\PurchasePaymentAnalyticsObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Pembayaran tagihan supplier. */
+#[ObservedBy([PurchasePaymentAnalyticsObserver::class])]
 class PurchasePayment extends Model
 {
     protected $guarded = ['id'];

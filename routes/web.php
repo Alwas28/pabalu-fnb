@@ -74,7 +74,7 @@ Route::middleware('auth')->group(function () {
 
         // Keuangan & laporan
         Volt::route('finance', 'pages.finance.index')->middleware('can:finance.view')->name('finance.index');
-        Volt::route('expenses', 'pages.expenses.index')->middleware('can:finance.view')->name('expenses.index');
+        Volt::route('expenses', 'pages.expenses.index')->middleware('can:expenses.record')->name('expenses.index');
         Volt::route('reports', 'pages.reports.index')->middleware('can:reports.view')->name('reports.index');
 
         // Pelanggan
@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:purchasing.manage')->prefix('purchasing')->name('purchasing.')->group(function () {
             Volt::route('/', 'pages.purchasing.index')->name('index');
             Volt::route('suppliers', 'pages.purchasing.suppliers')->name('suppliers');
+            Volt::route('quick', 'pages.purchasing.quick')->name('quick');
             Volt::route('orders/create', 'pages.purchasing.form')->name('create');
             Volt::route('orders/{purchaseOrder}/edit', 'pages.purchasing.form')->name('edit');
             Volt::route('orders/{purchaseOrder}', 'pages.purchasing.show')->name('show');

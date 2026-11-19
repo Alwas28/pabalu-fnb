@@ -8,7 +8,9 @@ use App\Models\Business;
 use App\Models\BusinessUser;
 use App\Models\Order;
 use App\Models\Outlet;
+use App\Models\OutboxEvent;
 use App\Models\User;
+use App\Support\Analytics\Outbox;
 use App\Support\Money;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -52,6 +54,21 @@ new #[Layout('layouts.admin')] #[Title('Ringkasan Platform')] class extends Comp
     public function latestActivities()
     {
         return AdminActivity::with('user')->latest('created_at')->latest('id')->limit(6)->get();
+    }
+
+    /** @return array{enabled: bool, pending: int, retrying: int, last_sent: mixed, last_error: ?string} */
+    #[Computed]
+    public function outbox(): array
+    {
+        $pending = OutboxEvent::whereNull('dispatched_at');
+
+        return [
+            'enabled' => Outbox::enabled(),
+            'pending' => (clone $pending)->count(),
+            'retrying' => (clone $pending)->where('attempts', '>', 0)->count(),
+            'last_sent' => OutboxEvent::max('dispatched_at'),
+            'last_error' => (clone $pending)->whereNotNull('last_error')->latest('id')->value('last_error'),
+        ];
     }
 }; ?>
 
@@ -132,6 +149,26 @@ new #[Layout('layouts.admin')] #[Title('Ringkasan Platform')] class extends Comp
                     <p class="text-[12.5px] text-pb-muted">Belum ada tindakan super admin.</p>
                 @endforelse
             </div>
+        </div>
+    </div>
+
+    @php $o = $this->outbox; @endphp
+    <div class="card animate-fadeUp">
+        <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-satellite-dish"></i>Pengiriman ke Analytics Platform</div>
+            <span class="badge {{ ! $o['enabled'] ? 'badge-gray' : ($o['retrying'] ? 'badge-red' : 'badge-green') }}">{{ ! $o['enabled'] ? 'Tidak aktif' : ($o['retrying'] ? 'Ada kegagalan' : 'Berjalan') }}</span>
+        </div>
+        <div class="card-body text-[13px] flex flex-col gap-1.5">
+            @if (! $o['enabled'])
+                <p class="text-pb-muted">Atur <code>ANALYTICS_ENDPOINT</code> (serta <code>ANALYTICS_TOKEN</code> / <code>ANALYTICS_SIGNING_SECRET</code>) di <code>.env</code> untuk mulai mengirim event penjualan &amp; keuangan.</p>
+            @else
+                <div class="flex justify-between"><span class="text-pb-sub">Menunggu dikirim</span><span class="font-semibold">{{ number_format($o['pending'], 0, ',', '.') }} event</span></div>
+                <div class="flex justify-between"><span class="text-pb-sub">Sedang dicoba ulang</span><span @class(['font-semibold', 'trend-down' => $o['retrying'] > 0])>{{ number_format($o['retrying'], 0, ',', '.') }} event</span></div>
+                <div class="flex justify-between"><span class="text-pb-sub">Terakhir terkirim</span><span>{{ $o['last_sent'] ? \Illuminate\Support\Carbon::parse($o['last_sent'])->timezone($tz)->format('d/m/Y H:i') : '—' }}</span></div>
+                @if ($o['last_error'])
+                    <div class="text-[11.5px] trend-down break-all">Galat terakhir: {{ $o['last_error'] }}</div>
+                @endif
+            @endif
         </div>
     </div>
 </div>

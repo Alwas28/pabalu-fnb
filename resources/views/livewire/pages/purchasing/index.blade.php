@@ -65,6 +65,7 @@ new #[Layout('layouts.app')] #[Title('Pembelian')] class extends Component
 }; ?>
 
 <x-slot name="actions">
+    <a href="{{ route('purchasing.quick') }}" wire:navigate class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-basket-shopping"></i><span class="hidden sm:inline">Belanja Cepat</span></a>
     <a href="{{ route('purchasing.suppliers') }}" wire:navigate class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-truck-field"></i><span class="hidden sm:inline">Supplier</span></a>
     <a href="{{ route('purchasing.create') }}" wire:navigate class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Buat PO</span></a>
 </x-slot>

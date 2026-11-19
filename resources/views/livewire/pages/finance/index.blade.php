@@ -116,6 +116,7 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
                 <div class="flex justify-between text-pb-sub"><span>Diterima dari pelanggan</span><span class="trend-up">{{ Money::format($cash['received']) }}</span></div>
                 <div class="flex justify-between text-pb-sub"><span>Refund ke pelanggan</span><span>-{{ Money::format($cash['refunded']) }}</span></div>
                 <div class="flex justify-between text-pb-sub"><span>Pembayaran supplier</span><span>-{{ Money::format($cash['supplier_payments']) }}</span></div>
+                <div class="flex justify-between text-pb-sub"><span>Belanja cepat (tanpa PO)</span><span>-{{ Money::format($cash['quick_purchases']) }}</span></div>
                 <div class="flex justify-between text-pb-sub"><span>Pengeluaran operasional</span><span>-{{ Money::format($cash['expenses']) }}</span></div>
                 <div @class(['flex justify-between font-display text-base font-bold border-t border-pb-border pt-1.5', 'text-pb-text' => $cash['net'] >= 0, 'trend-down' => $cash['net'] < 0])><span>Arus kas bersih</span><span>{{ Money::format($cash['net']) }}</span></div>
                 <div class="text-[11.5px] text-pb-muted mt-2">Berdasarkan tanggal uang diterima / dibayar, bukan tanggal transaksi.</div>

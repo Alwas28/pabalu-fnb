@@ -10,6 +10,7 @@ use App\Models\OrderItem;
 use App\Models\OrderPayment;
 use App\Models\OrderRefund;
 use App\Models\PurchasePayment;
+use App\Models\QuickPurchase;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -23,7 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
  * - Pajak & service : dicatat terpisah, bukan pendapatan usaha.
  * - HPP / COGS      : estimasi biaya bahan dari resep saat transaksi (order_items.cost_amount).
  * - Laba kotor      : penjualan bersih − HPP.  Laba operasional: laba kotor − pengeluaran operasional.
- * - Arus kas        : uang diterima − refund − pembayaran supplier − pengeluaran (berdasarkan tanggal bayar).
+ * - Arus kas        : uang diterima − refund − pembayaran supplier − belanja cepat − pengeluaran (berdasarkan tanggal bayar).
+ *   Belanja cepat bukan pengeluaran operasional: biaya bahannya masuk laba lewat HPP resep.
  *   Penjualan bersih tidak sama dengan kas masuk (open bill, refund, pajak & pembayaran tempo berbeda waktu).
  */
 class FinanceMetrics
@@ -133,14 +135,19 @@ class FinanceMetrics
         $received = (int) OrderPayment::whereHas('order', $orderScope)->whereBetween('paid_at', [$from, $to])->sum('amount');
         $refunded = (int) OrderRefund::whereHas('order', $orderScope)->whereBetween('created_at', [$from, $to])->sum('amount');
         $supplier = (int) PurchasePayment::whereHas('purchaseOrder', $orderScope)->whereDate('paid_at', '>=', $this->period->dateRange()[0])->whereDate('paid_at', '<=', $this->period->dateRange()[1])->sum('amount');
+        $quickPurchases = (int) QuickPurchase::where('business_id', $this->businessId)->whereIn('outlet_id', $this->outletIds)
+            ->whereNull('cancelled_at')
+            ->whereDate('purchased_at', '>=', $this->period->dateRange()[0])->whereDate('purchased_at', '<=', $this->period->dateRange()[1])
+            ->sum('total');
         $expenses = $this->expenseTotal();
 
         return [
             'received' => $received,
             'refunded' => $refunded,
             'supplier_payments' => $supplier,
+            'quick_purchases' => $quickPurchases,
             'expenses' => $expenses,
-            'net' => $received - $refunded - $supplier - $expenses,
+            'net' => $received - $refunded - $supplier - $quickPurchases - $expenses,
         ];
     }
 
