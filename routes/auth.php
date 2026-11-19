@@ -24,6 +24,10 @@ Route::middleware('guest')->group(function () {
     Volt::route('register/google', 'pages.auth.google-register')
         ->name('register.google');
 
+    // Daftar dengan email: akun dibuat setelah PIN dari email benar.
+    Volt::route('register/verify', 'pages.auth.register-verify')
+        ->name('register.verify');
+
     Volt::route('forgot-password', 'pages.auth.forgot-password')
         ->name('password.request');
 

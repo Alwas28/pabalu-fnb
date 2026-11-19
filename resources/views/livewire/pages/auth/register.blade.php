@@ -1,9 +1,8 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use App\Support\Auth\PendingRegistration;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -18,22 +17,21 @@ new #[Layout('layouts.guest')] #[Title('Daftar')] class extends Component
 
     /**
      * Daftar dengan email & password (alternatif dari daftar dengan Google).
+     * Akun baru dibuat setelah PIN yang dikirim ke email dimasukkan dengan benar.
      */
     public function register(): void
     {
+        $this->email = Str::lower(trim($this->email));
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ], [], ['name' => 'nama', 'email' => 'email', 'password' => 'password']);
 
-        $validated['password'] = Hash::make($validated['password']);
+        PendingRegistration::start($validated['name'], $validated['email'], $validated['password']);
 
-        event(new Registered($user = User::create($validated)));
-
-        Auth::login($user);
-
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        $this->redirectRoute('register.verify', navigate: true);
     }
 }; ?>
 
