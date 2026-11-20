@@ -172,6 +172,7 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
 }; ?>
 
 <x-slot name="actions">
+    <button type="button" x-data x-on:click="$dispatch('open-modal', 'stock-export')" class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-file-excel" style="color:#16a34a"></i><span class="hidden sm:inline">Unduh Excel</span></button>
     <a href="{{ route('inventory.counts.index') }}" wire:navigate class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-clipboard-check"></i><span class="hidden sm:inline">Stok Opname</span></a>
     <button type="button" x-data x-on:click="Livewire.dispatch('stock-transfer-open')" class="btn btn-secondary !px-3 sm:!px-[18px]"><i class="fa-solid fa-truck-ramp-box"></i><span class="hidden sm:inline">Transfer</span></button>
     <button type="button" x-data x-on:click="Livewire.dispatch('stock-action-open', { action: 'waste' })" class="btn btn-primary !px-3 sm:!px-[18px]"><i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Catat Waste</span></button>
@@ -391,4 +392,38 @@ new #[Layout('layouts.app')] #[Title('Stok Bahan')] class extends Component
             </form>
         </x-modal>
     @endif
+
+    {{-- Unduh laporan stok (Excel). Form GET biasa ke controller agar file langsung terunduh. --}}
+    @php $exportTz = auth()->user()->activeBusiness()->timezone; @endphp
+    <x-modal name="stock-export" maxWidth="md" focusable>
+        <form method="GET" action="{{ route('inventory.export') }}" x-on:submit="setTimeout(() => $dispatch('close'), 300)">
+            <div class="px-6 py-5 border-b border-pb-border">
+                <div class="font-display text-base font-bold text-pb-text">Unduh Laporan Stok (Excel)</div>
+                <div class="text-xs text-pb-muted mt-px">Berisi saldo & nilai persediaan, mutasi stok per bahan, dan rincian setiap pergerakan.</div>
+            </div>
+            <div class="px-6 py-5 grid grid-cols-2 gap-4">
+                <div>
+                    <x-input-label for="exportFrom" value="Mutasi dari" />
+                    <input type="date" name="from" id="exportFrom" value="{{ now($exportTz)->startOfMonth()->toDateString() }}" class="f-input" required>
+                </div>
+                <div>
+                    <x-input-label for="exportTo" value="Sampai" />
+                    <input type="date" name="to" id="exportTo" value="{{ now($exportTz)->toDateString() }}" class="f-input" required>
+                </div>
+                <div class="col-span-2">
+                    <x-input-label for="exportOutlet" value="Outlet" />
+                    <select name="outlet" id="exportOutlet" class="f-input">
+                        <option value="">Semua outlet saya</option>
+                        @foreach (auth()->user()->accessibleOutlets() as $exportOutlet)
+                            <option value="{{ $exportOutlet->id }}" @selected($exportOutlet->id === $this->outlet?->id)>{{ $exportOutlet->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-pb-border flex justify-end gap-2.5">
+                <x-secondary-button x-on:click="$dispatch('close')">Batal</x-secondary-button>
+                <x-primary-button><i class="fa-solid fa-file-excel"></i>Unduh</x-primary-button>
+            </div>
+        </form>
+    </x-modal>
 </div>

@@ -85,6 +85,10 @@ new #[Layout('layouts.app')] #[Title('Keuangan')] class extends Component
                 @endforeach
             </select>
         </div>
+        <a href="{{ route('finance.export', array_filter(['from' => $from, 'to' => $to, 'outlet' => $outletId])) }}"
+           class="btn btn-secondary !py-1.5 sm:ml-auto" title="Laba rugi, arus kas, penjualan harian, metode bayar, pengeluaran & daftar pesanan">
+            <i class="fa-solid fa-file-excel" style="color:#16a34a"></i>Unduh Excel
+        </a>
     </div>
 
     <div class="stat-grid">

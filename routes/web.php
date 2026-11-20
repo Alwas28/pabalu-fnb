@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\KitchenTicketController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -70,10 +71,12 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:inventory.manage')->prefix('inventory')->name('inventory.')->group(function () {
             Volt::route('/', 'pages.inventory.index')->name('index');
             Volt::route('counts', 'pages.inventory.counts')->name('counts.index');
+            Route::get('export', [ReportExportController::class, 'stock'])->name('export');
         });
 
         // Keuangan & laporan
         Volt::route('finance', 'pages.finance.index')->middleware('can:finance.view')->name('finance.index');
+        Route::get('finance/export', [ReportExportController::class, 'finance'])->middleware('can:finance.view')->name('finance.export');
         Volt::route('expenses', 'pages.expenses.index')->middleware('can:expenses.record')->name('expenses.index');
         Volt::route('reports', 'pages.reports.index')->middleware('can:reports.view')->name('reports.index');
 
