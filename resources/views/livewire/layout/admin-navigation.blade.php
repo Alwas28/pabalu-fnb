@@ -54,7 +54,7 @@ new class extends Component
         <x-brand-mark />
         <div>
             <div class="font-display text-[17px] font-bold text-pb-text leading-tight">
-                Pa<span class="a-text">balu</span> <span class="text-pb-muted font-medium text-sm">Admin</span>
+                Pa<span style="color:#E30100">balu</span> <span class="text-pb-muted font-medium text-sm">Admin</span>
             </div>
             <div class="text-[10px] text-pb-muted tracking-[.3px] mt-px">Pengelola aplikasi</div>
         </div>

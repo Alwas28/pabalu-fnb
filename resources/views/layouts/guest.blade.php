@@ -13,14 +13,9 @@
                 <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/10"></div>
                 <div class="absolute -bottom-32 -left-20 w-96 h-96 rounded-full bg-black/10"></div>
 
-                <div class="relative flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-xl bg-white/20 grid place-items-center">
-                        <i class="fa-solid fa-store text-white text-lg"></i>
-                    </div>
-                    <div class="text-white">
-                        <div class="font-display text-xl font-bold leading-tight">Pabalu F&amp;B</div>
-                        <div class="text-[11px] text-white/80">Sistem Manajemen UMKM</div>
-                    </div>
+                {{-- Logo lengkap dengan motto (latar putih) ditaruh di kartu putih. --}}
+                <div class="relative self-start rounded-2xl bg-white px-5 py-3 shadow-lg shadow-black/10">
+                    <img src="{{ asset('img/logo-header.png') }}" alt="Pabalu — Smart Solution For UMKM" class="h-14 w-auto">
                 </div>
 
                 <div class="relative text-white max-w-md">
@@ -44,14 +39,8 @@
             <!-- Form -->
             <main class="flex flex-col justify-center px-4 py-10 sm:px-10">
                 <div class="w-full max-w-[420px] mx-auto">
-                    <a href="/" wire:navigate class="lg:hidden flex items-center gap-3 mb-8">
-                        <x-brand-mark />
-                        <div>
-                            <div class="font-display text-[17px] font-bold text-pb-text leading-tight">
-                                Pa<span class="a-text">balu</span> <span class="text-pb-muted font-medium text-sm">F&amp;B</span>
-                            </div>
-                            <div class="text-[10px] text-pb-muted">Sistem Manajemen UMKM</div>
-                        </div>
+                    <a href="/" wire:navigate class="lg:hidden inline-flex mb-8 rounded-2xl bg-white px-4 py-2.5 shadow-sm">
+                        <img src="{{ asset('img/logo-header.png') }}" alt="Pabalu — Smart Solution For UMKM" class="h-11 w-auto">
                     </a>
 
                     <div class="card p-6 sm:p-8 animate-fadeUp">

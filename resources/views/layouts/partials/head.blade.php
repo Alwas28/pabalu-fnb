@@ -4,6 +4,12 @@
 
 <title>{{ ! empty($title) ? $title.' — ' : '' }}{{ config('app.name', 'Pabalu') }}</title>
 
+<!-- Ikon Pabalu -->
+<link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('img/favicon-32.png') }}">
+<link rel="apple-touch-icon" href="{{ asset('img/apple-touch-icon.png') }}">
+<meta name="theme-color" content="#E30100">
+
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
