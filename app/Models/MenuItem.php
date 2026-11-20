@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
  * Menu yang dijual. Harga dasar berlaku di semua outlet kecuali ditimpa
  * lewat pengaturan per outlet (menu_item_outlet).
  */
-#[Fillable(['menu_category_id', 'name', 'sku', 'description', 'image_path', 'price', 'sort_order', 'is_active'])]
+#[Fillable(['menu_category_id', 'name', 'sku', 'description', 'image_path', 'price', 'sort_order', 'is_active', 'needs_kitchen'])]
 class MenuItem extends Model
 {
     use Auditable;
@@ -27,6 +27,7 @@ class MenuItem extends Model
     protected $attributes = [
         'sort_order' => 0,
         'is_active' => true,
+        'needs_kitchen' => true,
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class MenuItem extends Model
             'price' => 'integer',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
+            'needs_kitchen' => 'boolean',
         ];
     }
 
@@ -101,7 +103,7 @@ class MenuItem extends Model
     /** @return list<string> */
     public function auditedAttributes(): array
     {
-        return ['name', 'sku', 'menu_category_id', 'price', 'is_active'];
+        return ['name', 'sku', 'menu_category_id', 'price', 'is_active', 'needs_kitchen'];
     }
 
     public function auditBusinessId(): ?int

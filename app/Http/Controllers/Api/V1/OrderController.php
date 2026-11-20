@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -88,6 +89,10 @@ class OrderController extends Controller
         ]);
 
         $ticket = new EscPosKitchenTicket($order, $request->integer('batch') ?: null, $request->integer('paper_width') ?: null);
+
+        if (EscPosKitchenTicket::itemsFor($order, $ticket->batch())->isEmpty()) {
+            throw ValidationException::withMessages(['order' => 'Pesanan ini tidak berisi item yang perlu diproses dapur.']);
+        }
 
         return response()->json([
             'data' => [

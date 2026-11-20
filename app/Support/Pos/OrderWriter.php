@@ -31,10 +31,10 @@ class OrderWriter
     {
         $outlet = $order->outlet;
         $batch = (int) $order->items()->max('kitchen_batch') + 1;
-        $kitchenStatus = KitchenFlow::initialItemStatus($outlet);
         $created = [];
 
         foreach ($lines as $line) {
+            $needsKitchen = (bool) $line->menuItem->needs_kitchen;
             $item = $created[] = $order->items()->create([
                 'menu_item_id' => $line->menuItem->id,
                 'menu_variant_id' => $line->variant?->id,
@@ -44,8 +44,9 @@ class OrderWriter
                 'quantity' => $line->quantity,
                 'line_total' => $line->lineTotal(),
                 'notes' => $line->notes,
-                'kitchen_status' => $kitchenStatus,
+                'kitchen_status' => KitchenFlow::initialItemStatus($outlet, $needsKitchen),
                 'kitchen_batch' => $batch,
+                'sent_to_kitchen' => $needsKitchen,
             ]);
 
             foreach ($line->modifiers as $modifier) {

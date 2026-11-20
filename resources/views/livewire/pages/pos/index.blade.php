@@ -708,12 +708,18 @@ new #[Layout('layouts.app')] #[Title('Kasir')] class extends Component
         $this->dispatch('open-modal', name: 'order-done');
     }
 
-    /** Outlet tanpa layar dapur: siapkan tiket dapur untuk kiriman item terakhir. */
+    /**
+     * Outlet tanpa layar dapur: siapkan tiket dapur untuk kiriman item terakhir.
+     * Tidak ada tiket bila kiriman itu hanya berisi menu yang tidak perlu dapur (mis. air mineral).
+     */
     private function rememberTicket(Order $order): void
     {
-        $this->pendingTicket = $this->outlet->usesKitchenDisplay()
+        $batch = (int) $order->items()->max('kitchen_batch');
+        $hasKitchenItems = $order->items()->where('kitchen_batch', $batch)->where('sent_to_kitchen', true)->where('quantity', '>', 0)->exists();
+
+        $this->pendingTicket = $this->outlet->usesKitchenDisplay() || ! $hasKitchenItems
             ? null
-            : ['order' => $order->id, 'number' => $order->number, 'batch' => (int) $order->items()->max('kitchen_batch')];
+            : ['order' => $order->id, 'number' => $order->number, 'batch' => $batch];
     }
 
     /** @return array<string, mixed> */

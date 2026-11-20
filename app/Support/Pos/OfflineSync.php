@@ -298,6 +298,7 @@ class OfflineSync
         ]);
 
         $created = [];
+        $needsKitchen = MenuItem::whereIn('id', collect($lines)->pluck('menu_item_id')->filter())->pluck('needs_kitchen', 'id');
 
         foreach ($lines as $line) {
             $modifiers = $line['modifiers'];
@@ -308,6 +309,7 @@ class OfflineSync
                 'kitchen_status' => KitchenItemStatus::Served,
                 'kitchen_batch' => 1,
                 'kitchen_updated_at' => $placedAt,
+                'sent_to_kitchen' => (bool) ($needsKitchen[$line['menu_item_id'] ?? 0] ?? true),
             ]);
 
             foreach ($modifiers as $modifier) {

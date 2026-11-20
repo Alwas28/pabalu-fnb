@@ -25,6 +25,9 @@ new #[Layout('layouts.app')] class extends Component
     public string $sortOrder = '0';
     public bool $isActive = true;
 
+    /** false = menu siap saji (mis. air mineral botol), tidak masuk layar / tiket dapur. */
+    public bool $needsKitchen = true;
+
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $photo = null;
     public bool $removePhoto = false;
@@ -64,6 +67,7 @@ new #[Layout('layouts.app')] class extends Component
             'price' => (string) $menuItem->price,
             'sortOrder' => (string) $menuItem->sort_order,
             'isActive' => $menuItem->is_active,
+            'needsKitchen' => $menuItem->needs_kitchen,
             'variants' => $menuItem->variants->map(fn ($v) => [
                 'id' => $v->id,
                 'name' => $v->name,
@@ -146,6 +150,7 @@ new #[Layout('layouts.app')] class extends Component
             'price' => ['required', 'integer', 'min:0', 'max:1000000000'],
             'sortOrder' => ['required', 'integer', 'min:0', 'max:9999'],
             'isActive' => ['boolean'],
+            'needsKitchen' => ['boolean'],
             'photo' => ['nullable', 'image', 'max:2048'],
             'variants' => ['array', 'max:20'],
             'variants.*.name' => ['required', 'string', 'max:60', 'distinct:ignore_case'],
@@ -174,6 +179,7 @@ new #[Layout('layouts.app')] class extends Component
                 'price' => (int) $this->price,
                 'sort_order' => (int) $this->sortOrder,
                 'is_active' => $this->isActive,
+                'needs_kitchen' => $this->needsKitchen,
             ];
 
             $menuItem = $this->menuItem
@@ -359,6 +365,10 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="sm:col-span-2">
                     <x-toggle wire:model="isActive" label="Menu aktif" icon="fa-power-off"
                               description="Nonaktif = diarsipkan dan tidak tampil di kasir mana pun" />
+                </div>
+                <div class="sm:col-span-2">
+                    <x-toggle wire:model="needsKitchen" label="Perlu diproses dapur" icon="fa-fire-burner"
+                              description="Matikan untuk menu siap saji (mis. air mineral botol): tidak masuk layar dapur maupun tiket dapur" />
                 </div>
             </div>
         </div>

@@ -23,9 +23,13 @@ use Illuminate\Validation\ValidationException;
  */
 class KitchenFlow
 {
-    public static function initialItemStatus(Outlet $outlet): KitchenItemStatus
+    /**
+     * Status awal item baru. Menu yang tidak perlu diproses dapur (mis. air mineral botol)
+     * langsung dianggap tersaji, sehingga tidak muncul di layar dapur.
+     */
+    public static function initialItemStatus(Outlet $outlet, bool $needsKitchen = true): KitchenItemStatus
     {
-        return $outlet->usesKitchenDisplay() ? KitchenItemStatus::Queued : KitchenItemStatus::Served;
+        return $needsKitchen && $outlet->usesKitchenDisplay() ? KitchenItemStatus::Queued : KitchenItemStatus::Served;
     }
 
     /** Tahap berikutnya sesuai tahap yang dipakai outlet; null bila sudah terakhir. */
@@ -109,9 +113,13 @@ class KitchenFlow
             return;
         }
 
-        $statuses = $order->items()->pluck('kitchen_status')
-            ->map(fn ($s) => $s instanceof KitchenItemStatus ? $s : KitchenItemStatus::from($s))
-            ->reject(fn ($s) => $s === KitchenItemStatus::Cancelled);
+        $items = $order->items()->get(['kitchen_status', 'sent_to_kitchen'])
+            ->reject(fn ($i) => $i->kitchen_status === KitchenItemStatus::Cancelled);
+
+        // Status ditentukan oleh item dapur; menu siap saji (mis. air mineral) hanya dipakai bila
+        // pesanan sama sekali tidak punya item dapur.
+        $kitchenItems = $items->where('sent_to_kitchen', true);
+        $statuses = ($kitchenItems->isNotEmpty() ? $kitchenItems : $items)->pluck('kitchen_status');
 
         $paid = in_array($order->payment_status, [PaymentStatus::Paid, PaymentStatus::PartiallyRefunded], true);
 

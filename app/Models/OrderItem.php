@@ -20,6 +20,7 @@ class OrderItem extends Model
             'line_total' => 'integer',
             'cost_amount' => 'integer',
             'kitchen_status' => KitchenItemStatus::class,
+            'sent_to_kitchen' => 'boolean',
         ];
     }
 

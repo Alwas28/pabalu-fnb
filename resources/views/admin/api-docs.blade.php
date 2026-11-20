@@ -228,7 +228,7 @@ pajak termasuk harga (prices_include_tax = true):
   "categories": [ { "id": 1, "name": "Kopi", "sort_order": 1 } ],
   "items": [ {
     "id": 1, "category_id": 1, "name": "Kopi Susu Gula Aren", "sku": "KOP-001",
-    "description": "…", "image_url": null, "price": 22000, "is_available": true,
+    "description": "…", "image_url": null, "price": 22000, "is_available": true, "needs_kitchen": true,
     "variants": [ { "id": 1, "name": "Regular", "price": 22000 }, { "id": 2, "name": "Large", "price": 27000 } ],
     "modifier_groups": [ {
       "id": 1, "name": "Gula", "min_select": 0, "max_select": 1,
@@ -236,6 +236,7 @@ pajak termasuk harga (prices_include_tax = true):
     } ]
   } ]
 } }</code></pre>
+        <p><code>needs_kitchen: false</code> menandai menu siap saji (mis. air mineral botol): item langsung tersaji, tidak masuk layar dapur, dan tidak dicetak di tiket dapur. Pada objek pesanan, setiap item punya <code>sent_to_kitchen</code>.</p>
         <p>Jika menu punya varian, kasir wajib memilih salah satu. Patuhi <code>min_select</code> dan <code>max_select</code> per grup modifier (<code>max_select</code> null berarti tidak dibatasi).</p>
       </div>
     </section>
@@ -357,7 +358,7 @@ pajak termasuk harga (prices_include_tax = true):
   "items": [ {
     "id": 14, "menu_item_id": 6, "variant_id": null, "name": "Air Mineral", "variant_name": null,
     "unit_price": 6000, "quantity": 4, "voided_quantity": 0, "line_total": 24000, "notes": null,
-    "kitchen_status": "served", "kitchen_batch": 1, "modifiers": []
+    "kitchen_status": "served", "kitchen_batch": 1, "sent_to_kitchen": true, "modifiers": []
   } ],
   "payments": [ {
     "id": 8, "method": "qris", "amount": 27720, "tendered_amount": 27720, "change_amount": 0,
@@ -481,7 +482,7 @@ pajak termasuk harga (prices_include_tax = true):
 
       <div class="ep">
         <div class="ep-head"><span class="method get">GET</span><span class="path">/orders/{order}/kitchen-ticket</span></div>
-        <p>Tiket dapur tanpa harga, untuk outlet dengan mode cetak tiket. Query <code>batch</code> (bawaan: kiriman terakhir) dan <code>paper_width</code>. Respons: <code>order_id, batch, columns, escpos_base64, text</code>.</p>
+        <p>Tiket dapur tanpa harga, untuk outlet dengan mode cetak tiket. Query <code>batch</code> (bawaan: kiriman terakhir) dan <code>paper_width</code>. Respons: <code>order_id, batch, columns, escpos_base64, text</code>. Hanya berisi item dengan <code>sent_to_kitchen: true</code>; bila kiriman itu tidak punya item dapur (mis. hanya air mineral) dijawab 422.</p>
       </div>
     </section>
 

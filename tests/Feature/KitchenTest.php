@@ -189,4 +189,46 @@ class KitchenTest extends TestCase
         $this->assertStringContainsString('1x Air Mineral', $text);
         $this->assertStringNotContainsString('Pisang', $text);
     }
+
+    public function test_ready_to_serve_menu_skips_the_kitchen_screen(): void
+    {
+        MenuItem::where('sku', 'NKP-003')->update(['needs_kitchen' => false]); // air mineral botol
+        $water = ['menu_item_id' => MenuItem::where('sku', 'NKP-003')->value('id'), 'quantity' => 2];
+
+        // Hanya air mineral: langsung tersaji & selesai, tidak tampil di layar dapur.
+        $waterOnly = app(PlaceOrder::class)->handle($this->kasir, $this->kendari, [
+            'service_type' => 'takeaway', 'items' => [$water], 'payments' => [['method' => 'cash', 'amount' => 50000]],
+        ]);
+        $this->assertSame(OrderStatus::Completed, $waterOnly->fresh()->status);
+        $this->assertFalse($waterOnly->items()->sole()->sent_to_kitchen);
+
+        // Campuran: hanya kentang goreng yang masuk antrean dapur.
+        $mixed = $this->paidOrder();
+        $items = $mixed->items()->get()->keyBy('name');
+        $this->assertSame(KitchenItemStatus::Served, $items['Air Mineral']->kitchen_status);
+        $this->assertSame(KitchenItemStatus::Queued, $items['Kentang Goreng']->kitchen_status);
+        $this->assertSame(OrderStatus::Confirmed, $mixed->fresh()->status);
+
+        $this->actingAs($this->dapur);
+        Volt::test('pages.kitchen.index')
+            ->assertDontSee($waterOnly->number)
+            ->assertSee($mixed->number)
+            ->assertSee('Kentang Goreng');
+    }
+
+    public function test_kitchen_ticket_leaves_out_ready_to_serve_menu(): void
+    {
+        MenuItem::where('sku', 'NKP-003')->update(['needs_kitchen' => false]);
+        $order = $this->openBill();
+
+        Sanctum::actingAs($this->kasir, ['pos']);
+        $text = $this->getJson("/api/v1/orders/{$order->id}/kitchen-ticket?batch=1")->assertOk()->json('data.text');
+        $this->assertStringContainsString('Kentang Goreng', $text);
+        $this->assertStringNotContainsString('Air Mineral', $text);
+
+        // Kiriman tambahan yang hanya air mineral: tidak ada tiket dapur.
+        app(AddOrderItems::class)->handle($this->kasir, $order, ['items' => [['menu_item_id' => MenuItem::where('sku', 'NKP-003')->value('id'), 'quantity' => 1]]]);
+        $this->getJson("/api/v1/orders/{$order->id}/kitchen-ticket?batch=2")->assertUnprocessable()->assertJsonValidationErrors('order');
+        $this->actingAs($this->kasir)->get(route('orders.kitchen-ticket', ['order' => $order, 'batch' => 2, 'print' => 0]))->assertNotFound();
+    }
 }

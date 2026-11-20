@@ -28,7 +28,9 @@ class EscPosKitchenTicket extends EscPosDocument
     /** @return Collection<int, OrderItem> */
     public static function itemsFor(Order $order, ?int $batch): Collection
     {
-        return $order->items->where('quantity', '>', 0)->when($batch, fn ($items) => $items->where('kitchen_batch', $batch))->values();
+        // Menu yang tidak perlu dapur (mis. air mineral botol) tidak ikut dicetak.
+        return $order->items->where('quantity', '>', 0)->where('sent_to_kitchen', true)
+            ->when($batch, fn ($items) => $items->where('kitchen_batch', $batch))->values();
     }
 
     public function batch(): int

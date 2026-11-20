@@ -32,6 +32,8 @@ class MenuItemResource extends JsonResource
             'image_url' => $this->imageUrl(),
             'price' => $price,
             'is_available' => $this->isAvailableAt($this->outlet),
+            // false = menu siap saji (mis. air mineral botol): tidak masuk dapur & tidak dicetak di tiket dapur.
+            'needs_kitchen' => $this->needs_kitchen,
             'variants' => $this->variants->map(fn ($variant) => [
                 'id' => $variant->id,
                 'name' => $variant->name,
