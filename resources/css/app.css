@@ -9,11 +9,11 @@
 
 /* ════ ACCENT VARS ════ */
 :root {
-    --ac: #f59e0b;
-    --ac2: #ef4444;
-    --ac-rgb: 245, 158, 11;
-    --ac-lt: rgba(245, 158, 11, .14);
-    --ac-lt2: rgba(245, 158, 11, .08);
+    --ac: #E30100;
+    --ac2: #FF5A36;
+    --ac-rgb: 227, 1, 0;
+    --ac-lt: rgba(227, 1, 0, .14);
+    --ac-lt2: rgba(227, 1, 0, .08);
 
     /* Dark theme (default) */
     --bg: #0f1117;
@@ -323,6 +323,35 @@ select.f-input option { background: var(--surface2); color: var(--text); }
 .animate-fadeUp { animation: fadeUp .35s ease both; }
 .d1 { animation-delay: .05s; } .d2 { animation-delay: .10s; } .d3 { animation-delay: .15s; }
 .d4 { animation-delay: .20s; } .d5 { animation-delay: .25s; }
+
+/* ════ PANEL MEREK LOGIN (warna tetap merah Pabalu) ════ */
+.pb-brand-panel { background: radial-gradient(120% 90% at 85% 10%, #FF5A36 0%, #E30100 45%, #9E0000 100%); }
+@keyframes pbFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes pbFloatAlt { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+@keyframes pbBlob { 0%, 100% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.12) translate(-16px, 12px); } }
+@keyframes pbBar { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
+.pb-float { animation: pbFloat 6s ease-in-out infinite; }
+.pb-float-alt { animation: pbFloatAlt 5s ease-in-out infinite; }
+.pb-blob { animation: pbBlob 12s ease-in-out infinite; }
+.pb-blob-slow { animation-duration: 16s; animation-direction: reverse; }
+.pb-bar { transform-origin: bottom; animation: pbBar 1.4s cubic-bezier(.2, .8, .2, 1) infinite alternate; }
+.pb-bar:nth-child(2n) { animation-delay: .3s; } .pb-bar:nth-child(3n) { animation-delay: .6s; }
+.pb-line { opacity: 0; transform: translateX(-12px); transition: opacity .35s ease, transform .35s ease; }
+.pb-line.is-on { opacity: 1; transform: none; }
+.pb-stamp { opacity: 0; transform: rotate(-12deg) scale(1.8); transition: opacity .25s ease, transform .35s cubic-bezier(.3, 1.6, .5, 1); }
+.pb-stamp.is-on { opacity: .9; transform: rotate(-12deg) scale(1); }
+.pb-chip {
+    display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px;
+    background: #fff; color: #1e293b; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+    opacity: 0; scale: .85; transition: opacity .4s ease, scale .4s cubic-bezier(.3, 1.5, .5, 1);
+}
+.pb-chip.is-on { opacity: 1; scale: 1; }
+.pb-word { opacity: 0; transform: translateY(60%); transition: opacity .45s ease, transform .45s ease; color: #FFE1D6; }
+.pb-word.is-on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+    .pb-float, .pb-float-alt, .pb-blob, .pb-bar { animation: none; }
+}
 
 /* ════ TOAST ════ */
 #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }

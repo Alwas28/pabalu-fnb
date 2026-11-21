@@ -4,7 +4,7 @@ import Chart from 'chart.js/auto';
 // Didefinisikan sekali di resources/views/layouts/partials/head.blade.php
 // (dipakai juga oleh skrip anti-flash sebelum CSS/JS dimuat).
 const accentPalette = window.PABALU_ACCENTS ?? [
-    { id: 'amber', label: 'Amber', ac: '#f59e0b', ac2: '#ef4444', rgb: '245,158,11' },
+    { id: 'pabalu', label: 'Pabalu', ac: '#E30100', ac2: '#FF5A36', rgb: '227,1,0' },
 ];
 
 const storage = {
@@ -40,7 +40,7 @@ function applyTheme(theme) {
  */
 function applySavedPreferences() {
     applyTheme(storage.get('pabalu-theme', 'dark'));
-    applyAccent(storage.get('pabalu-accent', 'amber'));
+    applyAccent(storage.get('pabalu-accent', 'pabalu'));
 }
 
 document.addEventListener('livewire:navigating', (e) => {
@@ -74,10 +74,70 @@ window.addEventListener('toast', (e) => toast(e.detail?.type ?? 'info', e.detail
 document.addEventListener('alpine:init', () => {
     const Alpine = window.Alpine;
 
+    /**
+     * Animasi panel merek di halaman login/daftar: item pesanan muncul satu per satu,
+     * total dihitung naik, cap LUNAS, lalu berulang. Menghormati prefers-reduced-motion.
+     */
+    Alpine.data('pabaluLoginShowcase', () => ({
+        items: [
+            { name: 'Kopi Susu Aren', qty: 2, price: 18000, icon: 'fa-mug-hot' },
+            { name: 'Nasi Goreng Spesial', qty: 1, price: 28000, icon: 'fa-bowl-food' },
+            { name: 'Air Mineral', qty: 1, price: 5000, icon: 'fa-bottle-water' },
+        ],
+        words: ['cepat.', 'rapi.', 'terkendali.', 'untung.'],
+        bars: [35, 55, 42, 68, 50, 78, 92],
+        step: 0,
+        paid: false,
+        hold: 0,
+        wordIndex: 0,
+        total: 0,
+        timers: [],
+
+        get target() {
+            return this.items.slice(0, this.step).reduce((sum, item) => sum + item.qty * item.price, 0);
+        },
+
+        rupiah(value) {
+            return 'Rp ' + Math.round(value).toLocaleString('id-ID');
+        },
+
+        init() {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                this.step = this.items.length;
+                this.total = this.target;
+                this.paid = true;
+                return;
+            }
+            this.timers.push(setInterval(() => this.tick(), 1100));
+            this.timers.push(setInterval(() => { this.wordIndex = (this.wordIndex + 1) % this.words.length; }, 2400));
+            this.timers.push(setInterval(() => {
+                // Total "berjalan" mendekati target agar terlihat seperti sedang dihitung.
+                const diff = this.target - this.total;
+                this.total = Math.abs(diff) < 500 ? this.target : this.total + diff * 0.25;
+            }, 40));
+        },
+
+        tick() {
+            if (this.step < this.items.length) {
+                this.step++;
+            } else if (! this.paid) {
+                this.paid = true;
+                this.hold = 0;
+            } else if (++this.hold >= 3) {
+                this.paid = false;
+                this.step = 0;
+            }
+        },
+
+        destroy() {
+            this.timers.forEach(clearInterval);
+        },
+    }));
+
     Alpine.store('ui', {
         sidebarOpen: false,
         theme: storage.get('pabalu-theme', 'dark'),
-        accent: storage.get('pabalu-accent', 'amber'),
+        accent: storage.get('pabalu-accent', 'pabalu'),
 
         toggleSidebar() { this.sidebarOpen = !this.sidebarOpen; },
         closeSidebar() { this.sidebarOpen = false; },

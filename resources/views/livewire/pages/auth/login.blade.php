@@ -1,7 +1,6 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
-use Database\Seeders\UserSeeder;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -25,27 +24,6 @@ new #[Layout('layouts.guest')] #[Title('Masuk')] class extends Component
         $home = auth()->user()->isSuperAdmin() ? route('admin.dashboard', absolute: false) : route('dashboard', absolute: false);
 
         $this->redirectIntended(default: $home, navigate: true);
-    }
-
-    /**
-     * Akun demo dari UserSeeder — hanya ditampilkan di environment local.
-     *
-     * @return array<int, array{name: string, email: string, role: string}>
-     */
-    public function demoAccounts(): array
-    {
-        if (! app()->isLocal() || ! class_exists(UserSeeder::class)) {
-            return [];
-        }
-
-        return [
-            ['name' => UserSeeder::SUPER_ADMIN['name'], 'email' => UserSeeder::SUPER_ADMIN['email'], 'role' => 'Super Admin'],
-            ...array_map(fn (array $a) => [
-                'name' => $a['name'],
-                'email' => $a['email'],
-                'role' => $a['role']->label(),
-            ], UserSeeder::accounts()),
-        ];
     }
 }; ?>
 
@@ -116,23 +94,4 @@ new #[Layout('layouts.guest')] #[Title('Masuk')] class extends Component
             </p>
         @endif
     </form>
-
-    @if ($accounts = $this->demoAccounts())
-        <div class="mt-6 pt-5 border-t border-pb-border">
-            <div class="flex items-center justify-between mb-2.5">
-                <span class="tp-section-label !p-0">Akun demo (local)</span>
-                <span class="text-[11px] text-pb-muted">password: <code class="a-text font-semibold">{{ UserSeeder::DEFAULT_PASSWORD }}</code></span>
-            </div>
-            <div class="grid grid-cols-2 gap-1.5">
-                @foreach ($accounts as $acc)
-                    <button type="button"
-                            x-on:click="$wire.form.email = {{ Js::from($acc['email']) }}; $wire.form.password = {{ Js::from(UserSeeder::DEFAULT_PASSWORD) }}"
-                            class="text-left px-3 py-2 rounded-[10px] bg-pb-surface2 border border-pb-border hover:border-pb-ac transition-colors">
-                        <div class="text-[12px] font-semibold text-pb-text truncate">{{ $acc['role'] }}</div>
-                        <div class="text-[10.5px] text-pb-muted truncate">{{ $acc['email'] }}</div>
-                    </button>
-                @endforeach
-            </div>
-        </div>
-    @endif
 </div>

@@ -19,6 +19,7 @@
 <!-- Tema & warna aksen diterapkan sebelum render agar tidak berkedip -->
 <script>
     window.PABALU_ACCENTS = [
+        { id: 'pabalu',  label: 'Pabalu', ac: '#E30100', ac2: '#FF5A36', rgb: '227,1,0' },
         { id: 'amber',   label: 'Amber',  ac: '#f59e0b', ac2: '#ef4444', rgb: '245,158,11' },
         { id: 'emerald', label: 'Hijau',  ac: '#10b981', ac2: '#06b6d4', rgb: '16,185,129' },
         { id: 'blue',    label: 'Biru',   ac: '#4f6ef7', ac2: '#7c3aed', rgb: '79,110,247' },
@@ -31,8 +32,13 @@
         { id: 'sky',     label: 'Sky',    ac: '#38bdf8', ac2: '#6366f1', rgb: '56,189,248' },
     ];
     (function () {
-        var theme = 'dark', accent = 'amber';
+        var theme = 'dark', accent = 'pabalu';
         try {
+            // Sekali saja: pindahkan semua pengguna ke warna merek Pabalu (sebelumnya bawaan Amber).
+            if (!localStorage.getItem('pabalu-brand-v1')) {
+                localStorage.setItem('pabalu-accent', 'pabalu');
+                localStorage.setItem('pabalu-brand-v1', '1');
+            }
             theme = localStorage.getItem('pabalu-theme') || theme;
             accent = localStorage.getItem('pabalu-accent') || accent;
         } catch (e) {}
